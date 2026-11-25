@@ -1,6 +1,4 @@
 import { Student } from "../students/student.model.js";
-import { ProcessedResult } from "../results/processedResult.model.js";
-import { SemesterSummary } from "../results/semesterSummary.model.js";
 import { PublishSnapshot } from "../publish/publishSnapshot.model.js";
 import { PublishedResultSnapshotRecord } from "../publish/publishedResultSnapshotRecord.model.js";
 import { ApiError } from "../../utils/apiError.js";
@@ -56,48 +54,6 @@ const buildStudentProfile = (student) => ({
       }
     : null,
 });
-
-const buildSubjectResultView = (processedResult) => ({
-  subjectCode: processedResult.subjectId?.code || "",
-  subjectName: processedResult.subjectId?.name || "",
-  shortName: processedResult.subjectId?.shortName || "",
-  subjectType: processedResult.subjectId?.subjectType || "",
-  credits: processedResult.subjectId?.credits || 0,
-  sourceSemester: processedResult.sourceSemesterId
-    ? {
-        number: processedResult.sourceSemesterId.number,
-        label: processedResult.sourceSemesterId.label,
-      }
-    : null,
-  attemptType: processedResult.attemptType,
-  attemptNumber: processedResult.attemptNumber,
-  result: processedResult.passStatus,
-  grade: processedResult.grade,
-  gradePoint: processedResult.gradePoint,
-  creditsEarned: processedResult.creditsEarned,
-});
-
-const buildSemesterSummaryView = (summary) => ({
-  semester: summary.semesterId
-    ? {
-        number: summary.semesterId.number,
-        label: summary.semesterId.label,
-      }
-    : null,
-  gpa: summary.gpa,
-  cgpa: summary.cgpa,
-  totalRegisteredSubjects: summary.totalRegisteredSubjects,
-  totalPassedSubjects: summary.totalPassedSubjects,
-  totalFailedSubjects: summary.totalFailedSubjects,
-  totalRegisteredCredits: summary.totalRegisteredCredits,
-  totalEarnedCredits: summary.totalEarnedCredits,
-  currentArrearCount: summary.currentArrearCount,
-  totalPendingArrearCount: summary.totalPendingArrearCount,
-  totalClearedArrearCount: summary.totalClearedArrearCount,
-});
-
-
-
 
 const loadStudentSnapshotData = async (snapshots, studentId) => {
   const bySnapshot = new Map();
