@@ -316,6 +316,42 @@ export const buildPublishedResultPdf = ({ resultData, collegeName }) => {
           22,
           doc.heightOfString(row.subjectName, { width: 216 }) + 8,
         );
+
+        // Keep every course row inside the printable page area. Repeat the
+        // column headings on continuation pages so printed transcripts remain readable.
+        if (y + subjectHeight > doc.page.height - 45) {
+          doc.addPage();
+          y = PAGE.top;
+          drawFilledHeader(
+            doc,
+            "SUBJECT-WISE GRADE DETAILS (CONTINUED)",
+            PAGE.left,
+            y,
+            PAGE.usableWidth,
+            22,
+          );
+          y += 24;
+          doc.save();
+          doc.rect(tableX, y, tableWidth, 24).fill(COLORS.headerGray);
+          doc.restore();
+          doc.font("Helvetica-Bold").fontSize(8.2);
+          columns.forEach((col) => {
+            doc.text(col.label, col.x + 2, y + 7, {
+              width: col.width - 4,
+              align: col.align,
+            });
+          });
+          doc.save();
+          doc.lineWidth(0.6).strokeColor(COLORS.border);
+          doc.rect(tableX, y, tableWidth, 24).stroke();
+          columns.slice(1).forEach((col) => {
+            doc.moveTo(col.x, y).lineTo(col.x, y + 24).stroke();
+          });
+          doc.restore();
+          y += 24;
+          doc.font("Helvetica").fontSize(8.3);
+        }
+
         if (index % 2 === 0) {
           doc.save();
           doc.rect(tableX, y, tableWidth, subjectHeight).fill(COLORS.lightRow);
@@ -345,6 +381,12 @@ export const buildPublishedResultPdf = ({ resultData, collegeName }) => {
       });
 
       y += 18;
+
+      // Keep the summary block together rather than splitting it across pages.
+      if (y + 22 + 96 + 35 > doc.page.height - 40) {
+        doc.addPage();
+        y = PAGE.top;
+      }
 
       // Summary
       drawFilledHeader(
