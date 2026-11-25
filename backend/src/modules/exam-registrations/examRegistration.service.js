@@ -625,6 +625,10 @@ export const updateExamRegistrationService = async (
     throw new ApiError(404, "Exam registration not found");
   }
 
+  const existingProcessedResult = await ProcessedResult.findOne({
+    examRegistrationId: examRegistration._id,
+  });
+
   const updatedValues = {
     examSessionId:
       payload.examSessionId ?? String(examRegistration.examSessionId),
@@ -633,12 +637,69 @@ export const updateExamRegistrationService = async (
     sourceSemesterId:
       payload.sourceSemesterId ?? String(examRegistration.sourceSemesterId),
     attemptType: payload.attemptType ?? examRegistration.attemptType,
-    attemptNumber: payload.attemptNumber ?? examRegistration.attemptNumber,
     registrationStatus:
       payload.registrationStatus ?? examRegistration.registrationStatus,
     isEligible: payload.isEligible ?? examRegistration.isEligible,
     remarks: payload.remarks ?? examRegistration.remarks,
   };
+
+  const academicFieldsChanged =
+    String(updatedValues.examSessionId) !== String(examRegistration.examSessionId) ||
+    String(updatedValues.studentId) !== String(examRegistration.studentId) ||
+    String(updatedValues.subjectId) !== String(examRegistration.subjectId) ||
+    String(updatedValues.sourceSemesterId) !== String(examRegistration.sourceSemesterId) ||
+    updatedValues.attemptType !== examRegistration.attemptType;
+
+  if (existingProcessedResult && academicFieldsChanged) {
+    throw new ApiError(
+      409,
+      "A registration with a processed result cannot have its academic attempt details changed",
+    );
+  }
+
+  if (existingProcessedResult && payload.isEligible !== undefined &&
+      Boolean(payload.isEligible) !== Boolean(examRegistration.isEligible)) {
+    throw new ApiError(
+      409,
+      "Eligibility cannot be changed after a result has been processed",
+    );
+  }
+
+  let attemptNumber = Number(examRegistration.attemptNumber || 1);
+
+  if (!existingProcessedResult) {
+    const latestCourseAttempt = await ProcessedResult.findOne({
+      studentId: updatedValues.studentId,
+      subjectId: updatedValues.subjectId,
+      examRegistrationId: { $ne: examRegistration._id },
+    }).sort({ attemptNumber: -1, processedAt: -1, createdAt: -1 });
+
+    if (updatedValues.attemptType === ATTEMPT_TYPES.ARREAR) {
+      if (!latestCourseAttempt || latestCourseAttempt.passStatus === PASS_STATUSES.PASS) {
+        throw new ApiError(
+          400,
+          "Only a course with a previous unsuccessful result can be registered as an arrear",
+        );
+      }
+
+      if (String(latestCourseAttempt.sourceSemesterId) !== String(updatedValues.sourceSemesterId)) {
+        throw new ApiError(
+          400,
+          "Arrear source semester must match the student's previous course attempt",
+        );
+      }
+
+      attemptNumber = Number(latestCourseAttempt.attemptNumber || 1) + 1;
+    } else {
+      if (latestCourseAttempt) {
+        throw new ApiError(
+          400,
+          "A previously attempted course must be registered through the arrear process",
+        );
+      }
+      attemptNumber = 1;
+    }
+  }
 
   await validateExamRegistrationBusinessRules(updatedValues);
 
@@ -661,7 +722,7 @@ export const updateExamRegistrationService = async (
   examRegistration.subjectId = updatedValues.subjectId;
   examRegistration.sourceSemesterId = updatedValues.sourceSemesterId;
   examRegistration.attemptType = updatedValues.attemptType;
-  examRegistration.attemptNumber = updatedValues.attemptNumber;
+  examRegistration.attemptNumber = attemptNumber;
   examRegistration.registrationStatus = updatedValues.registrationStatus;
   examRegistration.isEligible = updatedValues.isEligible;
   examRegistration.remarks = updatedValues.remarks?.trim() || "";
