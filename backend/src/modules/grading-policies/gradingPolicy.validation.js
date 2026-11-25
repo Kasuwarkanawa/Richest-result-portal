@@ -6,11 +6,11 @@ const gradeRuleSchema = z.object({
   min: z
     .number({ invalid_type_error: "Minimum mark must be a number" })
     .min(0)
-    .max(100),
+    .max(200),
   max: z
     .number({ invalid_type_error: "Maximum mark must be a number" })
     .min(0)
-    .max(100),
+    .max(200),
   point: z
     .number({ invalid_type_error: "Grade point must be a number" })
     .min(0)
