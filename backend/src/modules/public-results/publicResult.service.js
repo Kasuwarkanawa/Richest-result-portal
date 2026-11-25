@@ -4,7 +4,7 @@ import { SemesterSummary } from "../results/semesterSummary.model.js";
 import { PublishSnapshot } from "../publish/publishSnapshot.model.js";
 import { PublishedResultSnapshotRecord } from "../publish/publishedResultSnapshotRecord.model.js";
 import { ApiError } from "../../utils/apiError.js";
-import { PASS_STATUSES } from "../../config/constants.js";
+import { selectLatestAttemptPerSubject, buildArrearSummary } from "./publicResult.utils.js";
 
 const normalizeDateOnly = (dateValue) => {
   const d = new Date(dateValue);
@@ -96,47 +96,7 @@ const buildSemesterSummaryView = (summary) => ({
   totalClearedArrearCount: summary.totalClearedArrearCount,
 });
 
-const selectLatestAttemptPerSubject = (results) => {
-  const latestBySubject = new Map();
-  const sorted = [...results].sort((a, b) => {
-    const attemptDifference = Number(b.attemptNumber || 1) - Number(a.attemptNumber || 1);
-    if (attemptDifference !== 0) return attemptDifference;
-    return new Date(b.processedAt || b.updatedAt || b.createdAt || 0) -
-      new Date(a.processedAt || a.updatedAt || a.createdAt || 0);
-  });
 
-  for (const result of sorted) {
-    const subjectId = String(result.subjectId?._id || result.subjectId || "");
-    if (subjectId && !latestBySubject.has(subjectId)) {
-      latestBySubject.set(subjectId, result);
-    }
-  }
-  return Array.from(latestBySubject.values());
-};
-
-const buildArrearSummary = (allPublishedProcessedResults) => {
-  const latestResults = selectLatestAttemptPerSubject(allPublishedProcessedResults);
-  const priorFailures = new Set(
-    allPublishedProcessedResults
-      .filter((item) => item.passStatus !== PASS_STATUSES.PASS)
-      .map((item) => String(item.subjectId?._id || item.subjectId))
-  );
-
-  const pending = latestResults.filter(
-    (item) => item.passStatus !== PASS_STATUSES.PASS
-  ).length;
-
-  const cleared = latestResults.filter(
-    (item) =>
-      item.passStatus === PASS_STATUSES.PASS &&
-      priorFailures.has(String(item.subjectId?._id || item.subjectId))
-  ).length;
-
-  return {
-    totalPendingArrears: pending,
-    totalClearedArrears: cleared,
-  };
-};
 
 
 const loadStudentSnapshotData = async (snapshots, studentId) => {
@@ -229,7 +189,7 @@ export const searchPublishedResultService = async ({ registerNumber, dob }) => {
   )[0] || null;
   const allPublishedResults = snapshots.flatMap((snapshot) =>
     snapshotData.get(String(snapshot._id))?.results || []
-  ).map((item) => ({ ...item, subjectId: item.subject }));
+  ).map((item) => ({ ...item, subjectId: item.subject?.id || item.subject?._id || item.subject }));
 
   return {
     student: buildStudentProfile(student),
