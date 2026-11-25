@@ -43,14 +43,20 @@ export const publishExamSessionService = async ({ examSessionId, notes = "", act
     ensureUserExists(actorUserId)
   ]);
 
-  const [examRegistrations, processedResults] = await Promise.all([
-    ExamRegistration.find({ examSessionId }).select("_id"),
-    ProcessedResult.find({ examSessionId }).select("_id examRegistrationId studentId sourceSemesterId")
-  ]);
+  const examRegistrations = await ExamRegistration.find({
+    examSessionId,
+    isEligible: true
+  }).select("_id");
 
   if (examRegistrations.length === 0) {
-    throw new ApiError(400, "No exam registrations found for this exam session");
+    throw new ApiError(400, "No eligible exam registrations found for this exam session");
   }
+
+  const eligibleRegistrationIds = examRegistrations.map((item) => item._id);
+  const processedResults = await ProcessedResult.find({
+    examSessionId,
+    examRegistrationId: { $in: eligibleRegistrationIds }
+  }).select("_id examRegistrationId studentId sourceSemesterId");
 
   const processedRegistrationIds = new Set(
     processedResults.map((item) => String(item.examRegistrationId))
@@ -62,7 +68,7 @@ export const publishExamSessionService = async ({ examSessionId, notes = "", act
   if (missingRegistrations.length > 0 || processedResults.length !== examRegistrations.length) {
     throw new ApiError(
       400,
-      `Cannot publish incomplete results: ${missingRegistrations.length} exam registrations have no processed result`
+      `Cannot publish incomplete results: ${missingRegistrations.length} eligible exam registrations have no processed result`
     );
   }
 
