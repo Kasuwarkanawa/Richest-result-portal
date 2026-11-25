@@ -7,8 +7,7 @@ import {
 } from "./publicResult.controller.js";
 import { validate } from "../../middlewares/validate.middleware.js";
 import {
-  searchPublishedResultSchema,
-  registerNumberParamSchema
+  searchPublishedResultSchema
 } from "./publicResult.validation.js";
 
 const router = Router();
@@ -29,11 +28,7 @@ router.post("/search", publicResultLimiter, validate(searchPublishedResultSchema
 
 router.post("/download-pdf", publicResultLimiter, validate(searchPublishedResultSchema), downloadPublishedResultPdf);
 
-router.get(
-  "/history/:registerNumber",
-  publicResultLimiter,
-  validate(registerNumberParamSchema),
-  getPublishedResultHistory
-);
+// Credentials are sent in the request body, not in a URL/query string that may be logged.
+router.post("/history/search", publicResultLimiter, validate(searchPublishedResultSchema), getPublishedResultHistory);
 
 export default router;
