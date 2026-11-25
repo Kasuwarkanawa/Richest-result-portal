@@ -5,30 +5,36 @@ const publishedResultSnapshotRecordSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "PublishSnapshot",
     required: true,
+    immutable: true,
     index: true
   },
   examSessionId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "ExamSession",
-    required: true
+    required: true,
+    immutable: true
   },
   studentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Student",
-    required: true
+    required: true,
+    immutable: true
   },
   recordType: {
     type: String,
     enum: ["RESULT", "SUMMARY"],
-    required: true
+    required: true,
+    immutable: true
   },
   subjectId: {
     type: mongoose.Schema.Types.ObjectId,
-    default: null
+    default: null,
+    immutable: true
   },
   payload: {
     type: mongoose.Schema.Types.Mixed,
-    required: true
+    required: true,
+    immutable: true
   }
 }, { timestamps: true });
 
