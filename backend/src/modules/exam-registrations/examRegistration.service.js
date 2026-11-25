@@ -114,6 +114,13 @@ const validateExamRegistrationBusinessRules = async ({
     ensureSemesterExists(sourceSemesterId),
   ]);
 
+  if (["PUBLISHED", "CLOSED"].includes(examSession.status)) {
+    throw new ApiError(
+      409,
+      "Exam registrations cannot be created or changed after the exam session is published or closed",
+    );
+  }
+
   if (!student.programId || !student.regulationId) {
     throw new ApiError(400, "Student academic mapping is incomplete");
   }
@@ -288,6 +295,13 @@ export const autoSyncCurrentExamRegistrationsService = async ({
   }
 
   const examSession = await ensureExamSessionExists(examSessionId);
+
+  if (["PUBLISHED", "CLOSED"].includes(examSession.status)) {
+    throw new ApiError(
+      409,
+      "Registrations cannot be synchronized after the exam session is published or closed",
+    );
+  }
 
   if (String(examSession.sessionCategory).toUpperCase() !== "REGULAR") {
     throw new ApiError(
@@ -743,6 +757,29 @@ export const toggleExamRegistrationEligibilityService = async (
 
   if (!examRegistration) {
     throw new ApiError(404, "Exam registration not found");
+  }
+
+  const [examSession, processedResult] = await Promise.all([
+    ExamSession.findById(examRegistration.examSessionId).select("status"),
+    ProcessedResult.findOne({ examRegistrationId: examRegistration._id }).select("_id"),
+  ]);
+
+  if (!examSession) {
+    throw new ApiError(404, "Exam session not found");
+  }
+
+  if (["PUBLISHED", "CLOSED"].includes(examSession.status)) {
+    throw new ApiError(
+      409,
+      "Eligibility cannot be changed after the exam session is published or closed",
+    );
+  }
+
+  if (processedResult) {
+    throw new ApiError(
+      409,
+      "Eligibility cannot be changed after a result has been processed",
+    );
   }
 
   examRegistration.isEligible = !examRegistration.isEligible;
