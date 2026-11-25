@@ -56,7 +56,11 @@ export const publishExamSessionService = async ({ examSessionId, notes = "", act
   const processedResults = await ProcessedResult.find({
     examSessionId,
     examRegistrationId: { $in: eligibleRegistrationIds }
-  })\n    .populate("studentId", "registerNumber fullName")\n    .populate("subjectId", "code name shortName subjectType credits")\n    .populate("sourceSemesterId", "number label displayOrder")\n    .select("_id examRegistrationId studentId subjectId sourceSemesterId attemptType attemptNumber internalMark externalMark totalMark passStatus grade gradePoint creditsEarned gradingPolicyId resultVersion processedAt");
+  })
+    .populate("studentId", "registerNumber fullName")
+    .populate("subjectId", "code name shortName subjectType credits")
+    .populate("sourceSemesterId", "number label displayOrder")
+    .select("_id examRegistrationId studentId subjectId sourceSemesterId attemptType attemptNumber internalMark externalMark totalMark passStatus grade gradePoint creditsEarned gradingPolicyId resultVersion processedAt");
 
   const processedRegistrationIds = new Set(
     processedResults.map((item) => String(item.examRegistrationId))
@@ -72,9 +76,9 @@ export const publishExamSessionService = async ({ examSessionId, notes = "", act
     );
   }
 
-  const semesterSummaries = await SemesterSummary.find({ examSessionId }).select(
-    "studentId semesterId"
-  );
+  const semesterSummaries = await SemesterSummary.find({ examSessionId })
+    .populate("studentId", "registerNumber fullName")
+    .populate("semesterId", "number label displayOrder");
   const summaryKeys = new Set(
     semesterSummaries.map((item) => `${String(item.studentId?._id || item.studentId)}__${String(item.semesterId?._id || item.semesterId)}`)
   );
@@ -93,6 +97,70 @@ export const publishExamSessionService = async ({ examSessionId, notes = "", act
       `Cannot publish results: ${missingSummaries.length} student-semester summaries are missing`
     );
   }
+
+
+  const frozenResults = processedResults.map((item) => ({
+    processedResultId: item._id,
+    student: item.studentId ? {
+      id: item.studentId._id,
+      registerNumber: item.studentId.registerNumber,
+      fullName: item.studentId.fullName
+    } : null,
+    examRegistrationId: item.examRegistrationId,
+    subject: item.subjectId ? {
+      id: item.subjectId._id,
+      code: item.subjectId.code,
+      name: item.subjectId.name,
+      shortName: item.subjectId.shortName,
+      subjectType: item.subjectId.subjectType,
+      credits: item.subjectId.credits
+    } : null,
+    sourceSemester: item.sourceSemesterId ? {
+      id: item.sourceSemesterId._id,
+      number: item.sourceSemesterId.number,
+      label: item.sourceSemesterId.label,
+      displayOrder: item.sourceSemesterId.displayOrder
+    } : null,
+    attemptType: item.attemptType,
+    attemptNumber: item.attemptNumber,
+    internalMark: item.internalMark,
+    externalMark: item.externalMark,
+    totalMark: item.totalMark,
+    passStatus: item.passStatus,
+    grade: item.grade,
+    gradePoint: item.gradePoint,
+    creditsEarned: item.creditsEarned,
+    gradingPolicyId: item.gradingPolicyId,
+    resultVersion: item.resultVersion,
+    processedAt: item.processedAt
+  }));
+
+  const frozenSummaries = semesterSummaries
+    .filter((item) => requiredSummaryKeys.has(
+      `${String(item.studentId?._id || item.studentId)}__${String(item.semesterId?._id || item.semesterId)}`
+    ))
+    .map((item) => ({
+      studentId: item.studentId?._id || item.studentId,
+      studentRegisterNumber: item.studentId?.registerNumber || null,
+      studentFullName: item.studentId?.fullName || null,
+      semester: item.semesterId ? {
+        id: item.semesterId._id,
+        number: item.semesterId.number,
+        label: item.semesterId.label,
+        displayOrder: item.semesterId.displayOrder
+      } : null,
+      totalRegisteredSubjects: item.totalRegisteredSubjects,
+      totalPassedSubjects: item.totalPassedSubjects,
+      totalFailedSubjects: item.totalFailedSubjects,
+      totalRegisteredCredits: item.totalRegisteredCredits,
+      totalEarnedCredits: item.totalEarnedCredits,
+      gpa: item.gpa,
+      cgpa: item.cgpa,
+      currentArrearCount: item.currentArrearCount,
+      totalPendingArrearCount: item.totalPendingArrearCount,
+      totalClearedArrearCount: item.totalClearedArrearCount,
+      resultVersion: item.resultVersion
+    }));
 
   const latestSnapshot = await PublishSnapshot.findOne({ examSessionId })
     .sort({ snapshotVersion: -1 });
@@ -117,7 +185,7 @@ export const publishExamSessionService = async ({ examSessionId, notes = "", act
   const eligibleSummaryIds = semesterSummaries
     .filter((item) =>
       requiredSummaryKeys.has(
-        `${String(item.studentId)}__${String(item.semesterId)}`
+        `${String(item.studentId?._id || item.studentId)}__${String(item.semesterId?._id || item.semesterId)}`
       )
     )
     .map((item) => item._id);
@@ -141,6 +209,8 @@ export const publishExamSessionService = async ({ examSessionId, notes = "", act
     publishedAt: new Date(),
     totalStudents: uniqueStudents.size,
     totalSubjects: processedResults.length,
+    frozenResults,
+    frozenSummaries,
     status: PUBLISH_SNAPSHOT_STATUSES.ACTIVE,
     notes: notes.trim()
   });
