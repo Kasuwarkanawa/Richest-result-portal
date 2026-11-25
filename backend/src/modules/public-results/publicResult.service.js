@@ -3,19 +3,7 @@ import { PublishSnapshot } from "../publish/publishSnapshot.model.js";
 import { PublishedResultSnapshotRecord } from "../publish/publishedResultSnapshotRecord.model.js";
 import { ApiError } from "../../utils/apiError.js";
 import { selectLatestAttemptPerSubject, buildArrearSummary } from "./publicResult.utils.js";
-
-const normalizeDateOnly = (dateValue) => {
-  const d = new Date(dateValue);
-  return new Date(
-    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
-  );
-};
-
-const sameDateOnly = (a, b) => {
-  const d1 = normalizeDateOnly(a);
-  const d2 = normalizeDateOnly(b);
-  return d1.getTime() === d2.getTime();
-};
+import { verifyStudentPin } from "../students/studentPin.js";
 
 const buildStudentProfile = (student) => ({
   registerNumber: student.registerNumber,
@@ -91,26 +79,20 @@ const loadStudentSnapshotData = async (snapshots, studentId) => {
   return bySnapshot;
 };
 
-const getValidatedStudent = async ({ registerNumber, dob }) => {
-  const student = await Student.findOne({
-    registerNumber: registerNumber.trim().toUpperCase(),
-  })
-    .populate("departmentId", "code name shortName")
-    .populate("programId", "code name degreeType")
-    .populate("regulationId", "code name")
-    .populate("batchId", "label startYear endYear")
-    .populate("currentSemesterId", "number label");
-
-  if (!student) {
-    // Use the same response for unknown register numbers and DOB mismatches
-    // to avoid exposing whether a student record exists.
-    throw new ApiError(401, "Invalid register number or date of birth");
+const getValidatedStudent = async ({ registerNumber, studentPin }) => {
+  const normalizedRegisterNumber = String(registerNumber || "").trim().toUpperCase();
+  const student = await Student.findOne({ registerNumber: normalizedRegisterNumber }).select("+studentPinHash");
+  if (!student?.studentPinHash || !studentPin || !(await verifyStudentPin(String(studentPin), student.studentPinHash))) {
+    // Keep unknown register numbers and incorrect PINs indistinguishable.
+    throw new ApiError(401, "Invalid register number or Student PIN");
   }
-
-  if (!sameDateOnly(student.dob, dob)) {
-    throw new ApiError(401, "Invalid register number or date of birth");
-  }
-
+  await student.populate([
+    { path: "departmentId", select: "code name shortName" },
+    { path: "programId", select: "code name degreeType" },
+    { path: "regulationId", select: "code name" },
+    { path: "batchId", select: "label startYear endYear" },
+    { path: "currentSemesterId", select: "number label" }
+  ]);
   return student;
 };
 
