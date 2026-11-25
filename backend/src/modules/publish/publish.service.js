@@ -104,13 +104,26 @@ export const publishExamSessionService = async ({ examSessionId, notes = "", act
     { $set: { status: PUBLISH_SNAPSHOT_STATUSES.SUPERSEDED } }
   );
 
+  // Publish only records represented by eligible registrations. Ineligible
+  // registrations and unrelated summaries in the same exam session must remain private.
   await ProcessedResult.updateMany(
-    { examSessionId },
+    {
+      examSessionId,
+      examRegistrationId: { $in: eligibleRegistrationIds }
+    },
     { $set: { isPublished: true } }
   );
 
+  const eligibleSummaryIds = semesterSummaries
+    .filter((item) =>
+      requiredSummaryKeys.has(
+        `${String(item.studentId)}__${String(item.semesterId)}`
+      )
+    )
+    .map((item) => item._id);
+
   await SemesterSummary.updateMany(
-    { examSessionId },
+    { _id: { $in: eligibleSummaryIds } },
     { $set: { isPublished: true } }
   );
 
