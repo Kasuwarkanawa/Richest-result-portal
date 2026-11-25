@@ -5,16 +5,17 @@ import {
   getAllStudentsService,
   getStudentByIdService,
   updateStudentService,
-  toggleStudentAcademicStatusService
+  toggleStudentAcademicStatusService,
+  regenerateStudentPinService
 } from "./student.service.js";
 import { importStudentsFromExcel } from "./student.import.js";
 import { ApiError } from "../../utils/apiError.js";
 
 export const createStudent = asyncHandler(async (req, res) => {
-  const student = await createStudentService(req.body);
+  const result = await createStudentService(req.body);
 
   return res.status(201).json(
-    new ApiResponse(201, "Student created successfully", student)
+    new ApiResponse(201, "Student created successfully. Share the generated PIN securely with the student.", result)
   );
 });
 
@@ -51,6 +52,13 @@ export const toggleStudentAcademicStatus = asyncHandler(async (req, res) => {
       `Student status changed to ${student.academicStatus}`,
       student
     )
+  );
+});
+
+export const regenerateStudentPin = asyncHandler(async (req, res) => {
+  const result = await regenerateStudentPinService(req.params.studentId);
+  return res.status(200).json(
+    new ApiResponse(200, "New student PIN generated. Share it securely; it will not be shown again.", result)
   );
 });
 
