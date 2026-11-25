@@ -28,19 +28,8 @@ export default function ResultSearchPage() {
   };
 
   const validateForm = () => {
-    if (!form.registerNumber.trim()) {
-      return "Register Number is required";
-    }
-
-    if (!form.dob.trim()) {
-      return "Student PIN is required";
-    }
-
-    const dobPattern = /^\d{2}-\d{2}-\d{4}$/;
-    if (!dobPattern.test(form.dob.trim())) {
-      return "Date of Birth must be in dd-mm-yyyy format";
-    }
-
+    if (!form.registerNumber.trim()) return "Register Number is required";
+    if (!/^\d{10}$/.test(form.studentPin.trim())) return "Enter your 10-digit Student PIN";
     return "";
   };
 
@@ -117,7 +106,7 @@ export default function ResultSearchPage() {
 
       const response = await getPublishedResultHistoryApi({
         registerNumber: payload.registerNumber,
-        dob: payload.dob
+        studentPin: payload.studentPin
       });
 
       sessionStorage.setItem(
@@ -185,7 +174,7 @@ export default function ResultSearchPage() {
 
                 <div>
                   <label className="mb-2 block text-sm font-medium text-[#243447]">
-                    Date of Birth
+                    Student PIN
                   </label>
                   <input
                     type="text"
