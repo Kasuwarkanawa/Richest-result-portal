@@ -43,6 +43,6 @@ test("grade sheet paginates long subject transcripts and keeps summary on a page
 
   assert.ok(Buffer.isBuffer(pdf));
   assert.ok(pdf.length > 1000);
-  const pageCount = (pdf.toString("latin1").match(/\\/Type \\/Page\\b/g) || []).length;
+  const pageCount = pdf.toString("latin1").split("/Type /Page").length - 1;
   assert.ok(pageCount > 1, "long transcript should span multiple PDF pages");
 });
