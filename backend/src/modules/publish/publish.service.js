@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { PublishSnapshot } from "./publishSnapshot.model.js";
+import { PublishedResultSnapshotRecord } from "./publishedResultSnapshotRecord.model.js";
 import { ExamSession } from "../exam-sessions/examSession.model.js";
 import { ProcessedResult } from "../results/processedResult.model.js";
 import { ExamRegistration } from "../exam-registrations/examRegistration.model.js";
@@ -162,12 +163,31 @@ export const publishExamSessionService = async ({ examSessionId, notes = "", act
         publishedAt: new Date(),
         totalStudents: uniqueStudents.size,
         totalSubjects: processedResults.length,
-        frozenResults,
-        frozenSummaries,
+        storageVersion: 2,
         status: PUBLISH_SNAPSHOT_STATUSES.ACTIVE,
         notes: notes.trim()
       }], { session });
       createdSnapshotId = snapshot._id;
+
+      const frozenRecords = [
+        ...frozenResults.map((payload) => ({
+          snapshotId: snapshot._id,
+          examSessionId,
+          studentId: payload.student?.id,
+          recordType: "RESULT",
+          subjectId: payload.subject?.id || null,
+          payload
+        })),
+        ...frozenSummaries.map((payload) => ({
+          snapshotId: snapshot._id,
+          examSessionId,
+          studentId: payload.studentId,
+          recordType: "SUMMARY",
+          subjectId: null,
+          payload
+        }))
+      ];
+      await PublishedResultSnapshotRecord.insertMany(frozenRecords, { session, ordered: true });
 
       await PublishSnapshot.updateMany(
         { examSessionId, _id: { $ne: snapshot._id }, status: PUBLISH_SNAPSHOT_STATUSES.ACTIVE },
