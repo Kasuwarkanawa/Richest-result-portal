@@ -70,7 +70,7 @@ const processedResultSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 0,
-      max: 10
+      max: 4
     },
     creditsEarned: {
       type: Number,
