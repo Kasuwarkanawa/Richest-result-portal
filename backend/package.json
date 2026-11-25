@@ -11,7 +11,8 @@
     "reset:regulations": "node src/seeds/resetRegulations.js",
     "reset:batches": "node src/seeds/resetBatches.js",
     "reset:subjects": "node src/seeds/resetSubjects.js",
-    "migrate:semester-summary-index": "node src/scripts/migrateSemesterSummaryIndex.js"
+    "migrate:semester-summary-index": "node src/scripts/migrateSemesterSummaryIndex.js",
+    "test": "node --test"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
