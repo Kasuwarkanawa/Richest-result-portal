@@ -32,6 +32,9 @@ const publishSnapshotSchema = new mongoose.Schema(
       required: true,
       min: 0
     },
+    rolledBackAt: { type: Date, default: null },
+    rolledBackBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    rollbackReason: { type: String, trim: true, default: "" },
     status: {
       type: String,
       enum: Object.values(PUBLISH_SNAPSHOT_STATUSES),
