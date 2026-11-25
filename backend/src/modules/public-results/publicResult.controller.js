@@ -18,10 +18,7 @@ export const searchPublishedResult = asyncHandler(async (req, res) => {
 });
 
 export const getPublishedResultHistory = asyncHandler(async (req, res) => {
-  const result = await getPublishedResultHistoryService({
-    registerNumber: req.params.registerNumber,
-    dob: req.query.dob
-  });
+  const result = await getPublishedResultHistoryService(req.body);
 
   return res.status(200).json(
     new ApiResponse(200, "Published result history fetched successfully", result)
