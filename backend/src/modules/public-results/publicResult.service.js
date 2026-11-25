@@ -95,14 +95,40 @@ const buildSemesterSummaryView = (summary) => ({
   totalClearedArrearCount: summary.totalClearedArrearCount,
 });
 
+const selectLatestAttemptPerSubject = (results) => {
+  const latestBySubject = new Map();
+  const sorted = [...results].sort((a, b) => {
+    const attemptDifference = Number(b.attemptNumber || 1) - Number(a.attemptNumber || 1);
+    if (attemptDifference !== 0) return attemptDifference;
+    return new Date(b.processedAt || b.updatedAt || b.createdAt || 0) -
+      new Date(a.processedAt || a.updatedAt || a.createdAt || 0);
+  });
+
+  for (const result of sorted) {
+    const subjectId = String(result.subjectId?._id || result.subjectId || "");
+    if (subjectId && !latestBySubject.has(subjectId)) {
+      latestBySubject.set(subjectId, result);
+    }
+  }
+  return Array.from(latestBySubject.values());
+};
+
 const buildArrearSummary = (allPublishedProcessedResults) => {
-  const pending = allPublishedProcessedResults.filter(
-    (item) => item.passStatus !== PASS_STATUSES.PASS,
+  const latestResults = selectLatestAttemptPerSubject(allPublishedProcessedResults);
+  const priorFailures = new Set(
+    allPublishedProcessedResults
+      .filter((item) => item.passStatus !== PASS_STATUSES.PASS)
+      .map((item) => String(item.subjectId?._id || item.subjectId))
+  );
+
+  const pending = latestResults.filter(
+    (item) => item.passStatus !== PASS_STATUSES.PASS
   ).length;
 
-  const cleared = allPublishedProcessedResults.filter(
+  const cleared = latestResults.filter(
     (item) =>
-      item.attemptType === "ARREAR" && item.passStatus === PASS_STATUSES.PASS,
+      item.passStatus === PASS_STATUSES.PASS &&
+      priorFailures.has(String(item.subjectId?._id || item.subjectId))
   ).length;
 
   return {
@@ -173,11 +199,16 @@ export const searchPublishedResultService = async ({ registerNumber, dob }) => {
     .sort({ createdAt: -1 });
 
   const uniqueSubjectResultsMap = new Map();
+  const orderedSubjectResults = [...rawSubjectResults].sort((a, b) => {
+    const attemptDifference = Number(b.attemptNumber || 1) - Number(a.attemptNumber || 1);
+    if (attemptDifference !== 0) return attemptDifference;
+    return new Date(b.processedAt || b.updatedAt || b.createdAt || 0) -
+      new Date(a.processedAt || a.updatedAt || a.createdAt || 0);
+  });
 
-  for (const item of rawSubjectResults) {
+  for (const item of orderedSubjectResults) {
     const key = String(item?.subjectId?._id || item?.subjectId || "");
-
-    if (!uniqueSubjectResultsMap.has(key)) {
+    if (key && !uniqueSubjectResultsMap.has(key)) {
       uniqueSubjectResultsMap.set(key, item);
     }
   }
@@ -199,6 +230,7 @@ export const searchPublishedResultService = async ({ registerNumber, dob }) => {
   const semesterSummary = await SemesterSummary.findOne({
     studentId: student._id,
     examSessionId: targetExamSessionId,
+    semesterId: latestPublishedResult.sourceSemesterId?._id,
     isPublished: true,
   }).populate("semesterId", "number label");
 
