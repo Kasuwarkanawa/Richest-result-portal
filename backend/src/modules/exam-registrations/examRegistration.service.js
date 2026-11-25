@@ -211,7 +211,38 @@ const buildStudentFilter = ({ programId, batchId, studentSearch }) => {
 };
 
 export const createExamRegistrationService = async (payload) => {
-  await validateExamRegistrationBusinessRules(payload);
+  const latestCourseAttempt = await ProcessedResult.findOne({
+    studentId: payload.studentId,
+    subjectId: payload.subjectId,
+  }).sort({ attemptNumber: -1, processedAt: -1, createdAt: -1 });
+
+  let attemptNumber = 1;
+
+  if (payload.attemptType === ATTEMPT_TYPES.ARREAR) {
+    if (!latestCourseAttempt || latestCourseAttempt.passStatus === PASS_STATUSES.PASS) {
+      throw new ApiError(
+        400,
+        "Only a course with a previous unsuccessful result can be registered as an arrear",
+      );
+    }
+
+    if (String(latestCourseAttempt.sourceSemesterId) !== String(payload.sourceSemesterId)) {
+      throw new ApiError(
+        400,
+        "Arrear source semester must match the student's previous course attempt",
+      );
+    }
+
+    attemptNumber = Number(latestCourseAttempt.attemptNumber || 1) + 1;
+  } else if (latestCourseAttempt) {
+    throw new ApiError(
+      400,
+      "A previously attempted course must be registered through the arrear process",
+    );
+  }
+
+  const registrationPayload = { ...payload, attemptNumber };
+  await validateExamRegistrationBusinessRules(registrationPayload);
 
   const existingRegistration = await ExamRegistration.findOne({
     examSessionId: payload.examSessionId,
@@ -232,7 +263,7 @@ export const createExamRegistrationService = async (payload) => {
     subjectId: payload.subjectId,
     sourceSemesterId: payload.sourceSemesterId,
     attemptType: payload.attemptType,
-    attemptNumber: payload.attemptNumber || 1,
+    attemptNumber,
     registrationStatus: payload.registrationStatus || "REGISTERED",
     isEligible: payload.isEligible ?? true,
     remarks: payload.remarks?.trim() || "",
@@ -516,13 +547,21 @@ export const registerArrearCandidatesService = async ({
         subjectId: item.subjectId,
       }).sort({ attemptNumber: -1, processedAt: -1, createdAt: -1 });
 
+      if (!latestCourseAttempt || latestCourseAttempt.passStatus === PASS_STATUSES.PASS) {
+        throw new ApiError(400, "Only a course with a latest unsuccessful result can be registered as an arrear");
+      }
+
+      if (String(latestCourseAttempt.sourceSemesterId) !== String(item.sourceSemesterId)) {
+        throw new ApiError(400, "Arrear source semester does not match the previous course attempt");
+      }
+
       const payload = {
         examSessionId,
         studentId: item.studentId,
         subjectId: item.subjectId,
-        sourceSemesterId: item.sourceSemesterId,
+        sourceSemesterId: latestCourseAttempt.sourceSemesterId,
         attemptType: ATTEMPT_TYPES.ARREAR,
-        attemptNumber: Number(latestCourseAttempt?.attemptNumber || 0) + 1,
+        attemptNumber: Number(latestCourseAttempt.attemptNumber || 1) + 1,
         registrationStatus: "REGISTERED",
         isEligible: true,
         remarks: "",
