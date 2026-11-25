@@ -160,97 +160,88 @@ const getValidatedStudent = async ({ registerNumber, dob }) => {
 
 export const searchPublishedResultService = async ({ registerNumber, dob }) => {
   const student = await getValidatedStudent({ registerNumber, dob });
-
-  const activeSnapshots = await PublishSnapshot.find({
-    status: "ACTIVE",
-  }).sort({ publishedAt: -1 });
-
-  const publishedExamSessionIds = activeSnapshots.map(
-    (item) => item.examSessionId,
-  );
-
-  if (publishedExamSessionIds.length === 0) {
-    throw new ApiError(404, "No published results found");
-  }
-
-  const latestPublishedResult = await ProcessedResult.findOne({
-    studentId: student._id,
-    examSessionId: { $in: publishedExamSessionIds },
-    isPublished: true,
-  })
-    .sort({ processedAt: -1 })
+  const snapshots = await PublishSnapshot.find({ status: "ACTIVE" })
     .populate("examSessionId", "name examMonth examYear sessionCategory status")
-    .populate("subjectId", "code name shortName subjectType credits")
-    .populate("sourceSemesterId", "number label");
+    .sort({ publishedAt: -1 });
 
-  if (!latestPublishedResult) {
-    throw new ApiError(404, "No published result found for this student");
-  }
-
-  const targetExamSessionId = latestPublishedResult.examSessionId._id;
-
-  const rawSubjectResults = await ProcessedResult.find({
-    studentId: student._id,
-    examSessionId: targetExamSessionId,
-    isPublished: true,
-  })
-    .populate("subjectId", "code name shortName subjectType credits")
-    .populate("sourceSemesterId", "number label")
-    .sort({ createdAt: -1 });
-
-  const uniqueSubjectResultsMap = new Map();
-  const orderedSubjectResults = [...rawSubjectResults].sort((a, b) => {
-    const attemptDifference = Number(b.attemptNumber || 1) - Number(a.attemptNumber || 1);
-    if (attemptDifference !== 0) return attemptDifference;
-    return new Date(b.processedAt || b.updatedAt || b.createdAt || 0) -
-      new Date(a.processedAt || a.updatedAt || a.createdAt || 0);
-  });
-
-  for (const item of orderedSubjectResults) {
-    const key = String(item?.subjectId?._id || item?.subjectId || "");
-    if (key && !uniqueSubjectResultsMap.has(key)) {
-      uniqueSubjectResultsMap.set(key, item);
-    }
-  }
-
-  const subjectResults = Array.from(uniqueSubjectResultsMap.values()).sort(
-    (a, b) => {
-      const semA = Number(a?.sourceSemesterId?.number || 0);
-      const semB = Number(b?.sourceSemesterId?.number || 0);
-
-      if (semA !== semB) return semA - semB;
-
-      const codeA = String(a?.subjectId?.code || "");
-      const codeB = String(b?.subjectId?.code || "");
-
-      return codeA.localeCompare(codeB);
-    },
+  const studentSnapshots = snapshots.filter((snapshot) =>
+    (snapshot.frozenResults || []).some((item) =>
+      String(item.student?.id || item.studentId) === String(student._id)
+    )
   );
+  const targetSnapshot = studentSnapshots[0];
+  if (!targetSnapshot) throw new ApiError(404, "No published result found for this student");
 
-  const semesterSummary = await SemesterSummary.findOne({
-    studentId: student._id,
-    examSessionId: targetExamSessionId,
-    semesterId: latestPublishedResult.sourceSemesterId?._id,
-    isPublished: true,
-  }).populate("semesterId", "number label");
-
-  const allPublishedProcessedResults = await ProcessedResult.find({
-    studentId: student._id,
-    isPublished: true,
-  });
+  const frozenResults = (targetSnapshot.frozenResults || []).filter((item) =>
+    String(item.student?.id || item.studentId) === String(student._id)
+  );
+  const latestBySubject = new Map();
+  const sortedResults = [...frozenResults].sort((a, b) =>
+    Number(b.attemptNumber || 1) - Number(a.attemptNumber || 1) ||
+    new Date(b.processedAt || 0) - new Date(a.processedAt || 0)
+  );
+  for (const item of sortedResults) {
+    const key = String(item.subject?.id || item.subject?._id || "");
+    if (key && !latestBySubject.has(key)) latestBySubject.set(key, item);
+  }
+  const subjectResults = [...latestBySubject.values()].sort((a, b) =>
+    Number(a.sourceSemester?.number || 0) - Number(b.sourceSemester?.number || 0) ||
+    String(a.subject?.code || "").localeCompare(String(b.subject?.code || ""))
+  );
+  const semesterId = subjectResults[0]?.sourceSemester?.id;
+  const frozenSummary = (targetSnapshot.frozenSummaries || []).find((item) =>
+    String(item.studentId) === String(student._id) &&
+    String(item.semester?.id) === String(semesterId)
+  );
+  const allPublishedResults = snapshots.flatMap((snapshot) =>
+    (snapshot.frozenResults || [])
+      .filter((item) => String(item.student?.id || item.studentId) === String(student._id))
+      .map((item) => ({ ...item, subjectId: item.subject }))
+  );
 
   return {
     student: buildStudentProfile(student),
-    examSession: {
-      _id: latestPublishedResult.examSessionId._id,
-      name: latestPublishedResult.examSessionId.name,
-      examMonth: latestPublishedResult.examSessionId.examMonth,
-      examYear: latestPublishedResult.examSessionId.examYear,
-      sessionCategory: latestPublishedResult.examSessionId.sessionCategory,
-    },
-    subjectResults: subjectResults.map(buildSubjectResultView),
-    summary: semesterSummary ? buildSemesterSummaryView(semesterSummary) : null,
-    arrearSummary: buildArrearSummary(allPublishedProcessedResults),
+    examSession: targetSnapshot.examSessionId ? {
+      _id: targetSnapshot.examSessionId._id,
+      name: targetSnapshot.examSessionId.name,
+      examMonth: targetSnapshot.examSessionId.examMonth,
+      examYear: targetSnapshot.examSessionId.examYear,
+      sessionCategory: targetSnapshot.examSessionId.sessionCategory
+    } : null,
+    subjectResults: subjectResults.map((item) => ({
+      subjectCode: item.subject?.code || "",
+      subjectName: item.subject?.name || "",
+      shortName: item.subject?.shortName || "",
+      subjectType: item.subject?.subjectType || "",
+      credits: item.subject?.credits || 0,
+      sourceSemester: item.sourceSemester ? {
+        number: item.sourceSemester.number,
+        label: item.sourceSemester.label
+      } : null,
+      attemptType: item.attemptType,
+      attemptNumber: item.attemptNumber,
+      result: item.passStatus,
+      grade: item.grade,
+      gradePoint: item.gradePoint,
+      creditsEarned: item.creditsEarned
+    })),
+    summary: frozenSummary ? {
+      semester: frozenSummary.semester ? {
+        number: frozenSummary.semester.number,
+        label: frozenSummary.semester.label
+      } : null,
+      gpa: frozenSummary.gpa,
+      cgpa: frozenSummary.cgpa,
+      totalRegisteredSubjects: frozenSummary.totalRegisteredSubjects,
+      totalPassedSubjects: frozenSummary.totalPassedSubjects,
+      totalFailedSubjects: frozenSummary.totalFailedSubjects,
+      totalRegisteredCredits: frozenSummary.totalRegisteredCredits,
+      totalEarnedCredits: frozenSummary.totalEarnedCredits,
+      currentArrearCount: frozenSummary.currentArrearCount,
+      totalPendingArrearCount: frozenSummary.totalPendingArrearCount,
+      totalClearedArrearCount: frozenSummary.totalClearedArrearCount
+    } : null,
+    arrearSummary: buildArrearSummary(allPublishedResults)
   };
 };
 
