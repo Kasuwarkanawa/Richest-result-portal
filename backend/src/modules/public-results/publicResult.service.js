@@ -96,8 +96,8 @@ const getValidatedStudent = async ({ registerNumber, studentPin }) => {
   return student;
 };
 
-export const searchPublishedResultService = async ({ registerNumber, dob }) => {
-  const student = await getValidatedStudent({ registerNumber, dob });
+export const searchPublishedResultService = async ({ registerNumber, studentPin }) => {
+  const student = await getValidatedStudent({ registerNumber, studentPin });
   const snapshots = await PublishSnapshot.find({ status: "ACTIVE" })
     .populate("examSessionId", "name examMonth examYear sessionCategory status")
     .sort({ publishedAt: -1 });
@@ -170,8 +170,8 @@ export const searchPublishedResultService = async ({ registerNumber, dob }) => {
   };
 };
 
-export const getPublishedResultHistoryService = async ({ registerNumber, dob }) => {
-  const student = await getValidatedStudent({ registerNumber, dob });
+export const getPublishedResultHistoryService = async ({ registerNumber, studentPin }) => {
+  const student = await getValidatedStudent({ registerNumber, studentPin });
   const snapshots = await PublishSnapshot.find({ status: "ACTIVE" })
     .populate("examSessionId", "name examMonth examYear sessionCategory status")
     .sort({ publishedAt: -1 });
@@ -227,7 +227,7 @@ export const getPublishedResultHistoryService = async ({ registerNumber, dob }) 
 
 export const getPublishedResultForPdfService = async ({
   registerNumber,
-  dob,
+  studentPin,
 }) => {
-  return searchPublishedResultService({ registerNumber, dob });
+  return searchPublishedResultService({ registerNumber, studentPin });
 };
