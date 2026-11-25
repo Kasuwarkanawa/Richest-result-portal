@@ -167,3 +167,55 @@ export const getPublishSnapshotByIdService = async (publishSnapshotId) => {
 
   return snapshot;
 };
+
+export const rollbackPublishSnapshotService = async ({
+  publishSnapshotId,
+  reason,
+  actorUserId
+}) => {
+  ensureValidObjectId(publishSnapshotId, "publish snapshot");
+  await ensureUserExists(actorUserId);
+
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      const snapshot = await PublishSnapshot.findById(publishSnapshotId).session(session);
+      if (!snapshot) throw new ApiError(404, "Publish snapshot not found");
+      if (snapshot.status !== PUBLISH_SNAPSHOT_STATUSES.ACTIVE) {
+        throw new ApiError(409, "Only the active publication can be rolled back");
+      }
+
+      const examSession = await ExamSession.findById(snapshot.examSessionId).session(session);
+      if (!examSession) throw new ApiError(404, "Exam session not found");
+      if (examSession.status !== EXAM_SESSION_STATUSES.PUBLISHED) {
+        throw new ApiError(409, "Exam session is not in the published state");
+      }
+
+      await ProcessedResult.updateMany(
+        { examSessionId: snapshot.examSessionId, isPublished: true },
+        { $set: { isPublished: false } },
+        { session }
+      );
+      await SemesterSummary.updateMany(
+        { examSessionId: snapshot.examSessionId, isPublished: true },
+        { $set: { isPublished: false } },
+        { session }
+      );
+
+      snapshot.status = PUBLISH_SNAPSHOT_STATUSES.ROLLED_BACK;
+      snapshot.rolledBackAt = new Date();
+      snapshot.rolledBackBy = actorUserId;
+      snapshot.rollbackReason = reason.trim();
+      await snapshot.save({ session });
+
+      examSession.status = EXAM_SESSION_STATUSES.APPROVED;
+      examSession.resultPublishedAt = null;
+      examSession.resultPublishedBy = null;
+      await examSession.save({ session });
+    });
+  } finally {
+    await session.endSession();
+  }
+
+  return populatePublishSnapshot(PublishSnapshot.findById(publishSnapshotId));
+};
