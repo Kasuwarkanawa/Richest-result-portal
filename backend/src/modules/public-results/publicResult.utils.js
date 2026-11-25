@@ -10,8 +10,13 @@ export const selectLatestAttemptPerSubject = (results = []) => {
   const sorted = [...results].sort((a, b) => {
     const attemptDifference = Number(b.attemptNumber || 1) - Number(a.attemptNumber || 1);
     if (attemptDifference !== 0) return attemptDifference;
-    return new Date(b.processedAt || b.updatedAt || b.createdAt || 0) -
+
+    const processedDifference =
+      new Date(b.processedAt || b.updatedAt || b.createdAt || 0) -
       new Date(a.processedAt || a.updatedAt || a.createdAt || 0);
+    if (processedDifference !== 0) return processedDifference;
+
+    return Number(b.resultVersion || 0) - Number(a.resultVersion || 0);
   });
 
   for (const result of sorted) {
