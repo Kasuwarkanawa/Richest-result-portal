@@ -10,7 +10,8 @@
     "seed:admin": "node src/seeds/seedAdmin.js",
     "reset:regulations": "node src/seeds/resetRegulations.js",
     "reset:batches": "node src/seeds/resetBatches.js",
-    "reset:subjects": "node src/seeds/resetSubjects.js"
+    "reset:subjects": "node src/seeds/resetSubjects.js",
+    "migrate:semester-summary-index": "node src/scripts/migrateSemesterSummaryIndex.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
