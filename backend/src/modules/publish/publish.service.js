@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { PublishSnapshot } from "./publishSnapshot.model.js";
 import { ExamSession } from "../exam-sessions/examSession.model.js";
 import { ProcessedResult } from "../results/processedResult.model.js";
+import { ExamRegistration } from "../exam-registrations/examRegistration.model.js";
 import { SemesterSummary } from "../results/semesterSummary.model.js";
 import { User } from "../users/user.model.js";
 import { ApiError } from "../../utils/apiError.js";
@@ -42,14 +43,49 @@ export const publishExamSessionService = async ({ examSessionId, notes = "", act
     ensureUserExists(actorUserId)
   ]);
 
-  const processedResults = await ProcessedResult.find({ examSessionId });
-  if (processedResults.length === 0) {
-    throw new ApiError(400, "No processed results found for this exam session");
+  const [examRegistrations, processedResults] = await Promise.all([
+    ExamRegistration.find({ examSessionId }).select("_id"),
+    ProcessedResult.find({ examSessionId }).select("_id examRegistrationId studentId sourceSemesterId")
+  ]);
+
+  if (examRegistrations.length === 0) {
+    throw new ApiError(400, "No exam registrations found for this exam session");
   }
 
-  const semesterSummaries = await SemesterSummary.find({ examSessionId });
-  if (semesterSummaries.length === 0) {
-    throw new ApiError(400, "No semester summaries found for this exam session");
+  const processedRegistrationIds = new Set(
+    processedResults.map((item) => String(item.examRegistrationId))
+  );
+  const missingRegistrations = examRegistrations.filter(
+    (item) => !processedRegistrationIds.has(String(item._id))
+  );
+
+  if (missingRegistrations.length > 0 || processedResults.length !== examRegistrations.length) {
+    throw new ApiError(
+      400,
+      `Cannot publish incomplete results: ${missingRegistrations.length} exam registrations have no processed result`
+    );
+  }
+
+  const semesterSummaries = await SemesterSummary.find({ examSessionId }).select(
+    "studentId semesterId"
+  );
+  const summaryKeys = new Set(
+    semesterSummaries.map((item) => `${String(item.studentId)}__${String(item.semesterId)}`)
+  );
+  const requiredSummaryKeys = new Set(
+    processedResults.map(
+      (item) => `${String(item.studentId)}__${String(item.sourceSemesterId)}`
+    )
+  );
+  const missingSummaries = [...requiredSummaryKeys].filter(
+    (key) => !summaryKeys.has(key)
+  );
+
+  if (missingSummaries.length > 0) {
+    throw new ApiError(
+      400,
+      `Cannot publish results: ${missingSummaries.length} student-semester summaries are missing`
+    );
   }
 
   const latestSnapshot = await PublishSnapshot.findOne({ examSessionId })
