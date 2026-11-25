@@ -43,6 +43,26 @@ const ensureSemesterExists = async (semesterId) => {
   return semester;
 };
 
+const selectLatestAttemptPerStudentSubject = (results) => {
+  const latestByCourse = new Map();
+  const sorted = [...results].sort((a, b) => {
+    const attemptDifference = Number(b.attemptNumber || 1) - Number(a.attemptNumber || 1);
+    if (attemptDifference !== 0) return attemptDifference;
+    return new Date(b.processedAt || b.updatedAt || b.createdAt || 0) -
+      new Date(a.processedAt || a.updatedAt || a.createdAt || 0);
+  });
+
+  for (const result of sorted) {
+    const studentId = String(result.studentId?._id || result.studentId || "");
+    const subjectId = String(result.subjectId?._id || result.subjectId || "");
+    const key = studentId + "__" + subjectId;
+    if (studentId && subjectId && !latestByCourse.has(key)) {
+      latestByCourse.set(key, result);
+    }
+  }
+  return Array.from(latestByCourse.values());
+};
+
 const populateExamRegistration = (query) =>
   query
     .populate(
@@ -387,14 +407,16 @@ export const getArrearCandidatesService = async ({
 
   if (studentIds.length === 0) return [];
 
-  const processedResults = await ProcessedResult.find({
+  const allPublishedResults = await ProcessedResult.find({
     studentId: { $in: studentIds },
     isPublished: true,
-    passStatus: { $ne: PASS_STATUSES.PASS },
   })
     .populate("studentId", "registerNumber fullName currentSemesterId")
     .populate("subjectId", "code name shortName subjectType credits isActive")
     .populate("sourceSemesterId", "number label displayOrder");
+
+  const processedResults = selectLatestAttemptPerStudentSubject(allPublishedResults)
+    .filter((result) => result.passStatus !== PASS_STATUSES.PASS);
 
   const existingArrearRegistrations = await ExamRegistration.find({
     examSessionId,
@@ -489,13 +511,18 @@ export const registerArrearCandidatesService = async ({
 
   for (const item of registrations) {
     try {
+      const latestCourseAttempt = await ProcessedResult.findOne({
+        studentId: item.studentId,
+        subjectId: item.subjectId,
+      }).sort({ attemptNumber: -1, processedAt: -1, createdAt: -1 });
+
       const payload = {
         examSessionId,
         studentId: item.studentId,
         subjectId: item.subjectId,
         sourceSemesterId: item.sourceSemesterId,
         attemptType: ATTEMPT_TYPES.ARREAR,
-        attemptNumber: item.attemptNumber || 2,
+        attemptNumber: Number(latestCourseAttempt?.attemptNumber || 0) + 1,
         registrationStatus: "REGISTERED",
         isEligible: true,
         remarks: "",
