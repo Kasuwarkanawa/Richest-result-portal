@@ -202,7 +202,7 @@ export const publishExamSessionService = async ({ examSessionId, notes = "", act
 
 export const getAllPublishSnapshotsService = async () => {
   return populatePublishSnapshot(
-    PublishSnapshot.find().sort({ createdAt: -1 })
+    PublishSnapshot.find().select("-frozenResults -frozenSummaries").sort({ createdAt: -1 })
   );
 };
 
