@@ -3,7 +3,8 @@ import { ApiResponse } from "../../utils/apiResponse.js";
 import {
   publishExamSessionService,
   getAllPublishSnapshotsService,
-  getPublishSnapshotByIdService
+  getPublishSnapshotByIdService,
+  rollbackPublishSnapshotService
 } from "./publish.service.js";
 
 export const publishExamSession = asyncHandler(async (req, res) => {
@@ -31,5 +32,17 @@ export const getPublishSnapshotById = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new ApiResponse(200, "Publish snapshot fetched successfully", snapshot)
+  );
+});
+
+export const rollbackPublishSnapshot = asyncHandler(async (req, res) => {
+  const snapshot = await rollbackPublishSnapshotService({
+    publishSnapshotId: req.params.publishSnapshotId,
+    reason: req.body.reason,
+    actorUserId: req.user.userId
+  });
+
+  return res.status(200).json(
+    new ApiResponse(200, "Publication rolled back. Existing result records were retained.", snapshot)
   );
 });
