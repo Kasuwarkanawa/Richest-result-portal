@@ -11,7 +11,7 @@ export default function ResultSearchPage() {
 
   const [form, setForm] = useState({
     registerNumber: "",
-    dob: ""
+    studentPin: ""
   });
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -27,29 +27,13 @@ export default function ResultSearchPage() {
     setInfoMessage("");
   };
 
-  const convertDobToIso = () => {
-    const dob = form.dob.trim();
-
-    if (!dob) return "";
-
-    const parts = dob.split("-");
-    if (parts.length !== 3) return "";
-
-    const [day, month, year] = parts;
-
-    if (!day || !month || !year) return "";
-    if (day.length !== 2 || month.length !== 2 || year.length !== 4) return "";
-
-    return `${year}-${month}-${day}T00:00:00.000Z`;
-  };
-
   const validateForm = () => {
     if (!form.registerNumber.trim()) {
       return "Register Number is required";
     }
 
     if (!form.dob.trim()) {
-      return "Date of Birth is required";
+      return "Student PIN is required";
     }
 
     const dobPattern = /^\d{2}-\d{2}-\d{4}$/;
@@ -62,7 +46,7 @@ export default function ResultSearchPage() {
 
   const buildPayload = () => ({
     registerNumber: form.registerNumber.trim().toUpperCase(),
-    dob: convertDobToIso()
+    studentPin: form.studentPin.trim()
   });
 
   const handleSearch = async () => {
@@ -180,7 +164,7 @@ export default function ResultSearchPage() {
                 Search Published Result
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-[#6B7A8C]">
-                Enter your Register Number and Date of Birth to view the latest
+                Enter your Register Number and Student PIN to view the latest
                 published result or check your semester-wise published result history.
               </p>
 
@@ -205,11 +189,13 @@ export default function ResultSearchPage() {
                   </label>
                   <input
                     type="text"
-                    name="dob"
-                    value={form.dob}
+                    name="studentPin"
+                    value={form.studentPin}
                     onChange={handleChange}
-                    placeholder="dd-mm-yyyy"
+                    placeholder="10-digit Student PIN"
                     inputMode="numeric"
+                    maxLength={10}
+                    autoComplete="off"
                     className="w-full rounded-2xl border border-[#E6ECF2] px-4 py-3 text-[#243447] outline-none transition placeholder:text-[#A3AFBF] focus:border-[#7C9CCF] focus:ring-4 focus:ring-[#7C9CCF]/10"
                   />
                 </div>
