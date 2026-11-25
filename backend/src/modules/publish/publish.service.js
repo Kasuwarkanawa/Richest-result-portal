@@ -56,7 +56,7 @@ export const publishExamSessionService = async ({ examSessionId, notes = "", act
   const processedResults = await ProcessedResult.find({
     examSessionId,
     examRegistrationId: { $in: eligibleRegistrationIds }
-  }).select("_id examRegistrationId studentId sourceSemesterId");
+  })\n    .populate("studentId", "registerNumber fullName")\n    .populate("subjectId", "code name shortName subjectType credits")\n    .populate("sourceSemesterId", "number label displayOrder")\n    .select("_id examRegistrationId studentId subjectId sourceSemesterId attemptType attemptNumber internalMark externalMark totalMark passStatus grade gradePoint creditsEarned gradingPolicyId resultVersion processedAt");
 
   const processedRegistrationIds = new Set(
     processedResults.map((item) => String(item.examRegistrationId))
