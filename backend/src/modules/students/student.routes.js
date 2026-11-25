@@ -9,7 +9,8 @@ import {
   updateStudent,
   toggleStudentAcademicStatus,
   importStudents,
-  downloadStudentImportTemplate
+  downloadStudentImportTemplate,
+  regenerateStudentPin
 } from "./student.controller.js";
 import { validate } from "../../middlewares/validate.middleware.js";
 import {
@@ -104,6 +105,13 @@ router.put(
   validate(updateStudentSchema),
   roleMiddleware(ROLES.SUPER_ADMIN, ROLES.EXAM_CELL_ADMIN, ROLES.DEPARTMENT_ADMIN),
   updateStudent
+);
+
+router.post(
+  "/:studentId/regenerate-pin",
+  validate(studentIdParamSchema),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.EXAM_CELL_ADMIN, ROLES.DEPARTMENT_ADMIN),
+  regenerateStudentPin
 );
 
 router.patch(
