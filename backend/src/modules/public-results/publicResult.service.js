@@ -245,49 +245,63 @@ export const searchPublishedResultService = async ({ registerNumber, dob }) => {
   };
 };
 
-export const getPublishedResultHistoryService = async ({
-  registerNumber,
-  dob,
-}) => {
+export const getPublishedResultHistoryService = async ({ registerNumber, dob }) => {
   const student = await getValidatedStudent({ registerNumber, dob });
-
-  const summaries = await SemesterSummary.find({
-    studentId: student._id,
-    isPublished: true,
-  })
+  const snapshots = await PublishSnapshot.find({ status: "ACTIVE" })
     .populate("examSessionId", "name examMonth examYear sessionCategory status")
-    .populate("semesterId", "number label displayOrder")
-    .sort({ createdAt: -1 });
+    .sort({ publishedAt: -1 });
 
-  if (summaries.length === 0) {
-    throw new ApiError(
-      404,
-      "No published result history found for this student",
-    );
+  const studentSnapshots = snapshots.filter((snapshot) =>
+    (snapshot.frozenSummaries || []).some((item) =>
+      String(item.studentId) === String(student._id)
+    )
+  );
+  const history = studentSnapshots.flatMap((snapshot) =>
+    (snapshot.frozenSummaries || [])
+      .filter((item) => String(item.studentId) === String(student._id))
+      .map((item) => ({
+        examSession: snapshot.examSessionId ? {
+          _id: snapshot.examSessionId._id,
+          name: snapshot.examSessionId.name,
+          examMonth: snapshot.examSessionId.examMonth,
+          examYear: snapshot.examSessionId.examYear,
+          sessionCategory: snapshot.examSessionId.sessionCategory
+        } : null,
+        snapshotVersion: snapshot.snapshotVersion,
+        publishedAt: snapshot.publishedAt,
+        summary: {
+          semester: item.semester ? {
+            number: item.semester.number,
+            label: item.semester.label
+          } : null,
+          gpa: item.gpa,
+          cgpa: item.cgpa,
+          totalRegisteredSubjects: item.totalRegisteredSubjects,
+          totalPassedSubjects: item.totalPassedSubjects,
+          totalFailedSubjects: item.totalFailedSubjects,
+          totalRegisteredCredits: item.totalRegisteredCredits,
+          totalEarnedCredits: item.totalEarnedCredits,
+          currentArrearCount: item.currentArrearCount,
+          totalPendingArrearCount: item.totalPendingArrearCount,
+          totalClearedArrearCount: item.totalClearedArrearCount
+        }
+      }))
+  );
+
+  if (history.length === 0) {
+    throw new ApiError(404, "No published result history found for this student");
   }
 
-  const history = summaries.map((item) => ({
-    examSession: item.examSessionId
-      ? {
-          _id: item.examSessionId._id,
-          name: item.examSessionId.name,
-          examMonth: item.examSessionId.examMonth,
-          examYear: item.examSessionId.examYear,
-          sessionCategory: item.examSessionId.sessionCategory,
-        }
-      : null,
-    summary: buildSemesterSummaryView(item),
-  }));
-
-  const allPublishedProcessedResults = await ProcessedResult.find({
-    studentId: student._id,
-    isPublished: true,
-  });
+  const allPublishedResults = snapshots.flatMap((snapshot) =>
+    (snapshot.frozenResults || [])
+      .filter((item) => String(item.student?.id || item.studentId) === String(student._id))
+      .map((item) => ({ ...item, subjectId: item.subject }))
+  );
 
   return {
     student: buildStudentProfile(student),
     history,
-    arrearSummary: buildArrearSummary(allPublishedProcessedResults),
+    arrearSummary: buildArrearSummary(allPublishedResults)
   };
 };
 
