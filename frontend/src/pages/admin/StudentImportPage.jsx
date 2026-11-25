@@ -257,6 +257,7 @@ export default function StudentBulkImportPage() {
                       <tr>
                         <th className="px-4 py-3 text-left">Register Number</th>
                         <th className="px-4 py-3 text-left">Full Name</th>
+                        <th className="px-4 py-3 text-left">Student PIN</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -268,9 +269,8 @@ export default function StudentBulkImportPage() {
                           <td className="px-4 py-4 text-[#243447]">
                             {student.registerNumber}
                           </td>
-                          <td className="px-4 py-4 text-[#243447]">
-                            {student.fullName}
-                          </td>
+                          <td className="px-4 py-4 text-[#243447]">{student.fullName}</td>
+                          <td className="px-4 py-4 font-mono font-semibold tracking-wider text-[#243447]">{student.studentPin}</td>
                         </tr>
                       ))}
                     </tbody>
