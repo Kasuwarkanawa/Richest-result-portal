@@ -316,6 +316,7 @@ export default function GradingPoliciesPage() {
       const max = Number(rule.max);
       const point = Number(rule.point);
       if (!rule.grade.trim()) return "Every grade rule needs a grade label";
+      if (rule.min === "" || rule.max === "" || rule.point === "") return "Complete every grade rule field";
       if (![min, max, point].every(Number.isFinite)) return "Grade rule values must be valid numbers";
       if (min < 0 || max > 100 || min > max) return "Grade mark ranges must be between 0 and 100, with minimum not above maximum";
       if (point < 0 || point > 4) return "Grade points must be between 0 and 4.0";
