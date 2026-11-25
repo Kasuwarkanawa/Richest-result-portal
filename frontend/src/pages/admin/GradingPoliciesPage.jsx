@@ -318,7 +318,7 @@ export default function GradingPoliciesPage() {
       if (!rule.grade.trim()) return "Every grade rule needs a grade label";
       if (rule.min === "" || rule.max === "" || rule.point === "") return "Complete every grade rule field";
       if (![min, max, point].every(Number.isFinite)) return "Grade rule values must be valid numbers";
-      if (min < 0 || max > 100 || min > max) return "Grade mark ranges must be between 0 and 100, with minimum not above maximum";
+      if (min < 0 || max > 200 || min > max) return "Grade mark ranges must be between 0 and 200, with minimum not above maximum";
       if (point < 0 || point > 4) return "Grade points must be between 0 and 4.0";
     }
 
@@ -738,8 +738,8 @@ export default function GradingPoliciesPage() {
             {gradeRules.map((rule, index) => (
               <div key={index} className="grid grid-cols-2 gap-3 rounded-xl border border-[#E6ECF2] p-3 sm:grid-cols-5">
                 <input aria-label="Grade label" value={rule.grade} onChange={(event) => updateGradeRule(index, "grade", event.target.value)} placeholder="Grade" className="rounded-lg border border-[#E6ECF2] px-3 py-2 text-sm" />
-                <input aria-label="Minimum mark" type="number" min="0" max="100" value={rule.min} onChange={(event) => updateGradeRule(index, "min", event.target.value)} placeholder="Min mark" className="rounded-lg border border-[#E6ECF2] px-3 py-2 text-sm" />
-                <input aria-label="Maximum mark" type="number" min="0" max="100" value={rule.max} onChange={(event) => updateGradeRule(index, "max", event.target.value)} placeholder="Max mark" className="rounded-lg border border-[#E6ECF2] px-3 py-2 text-sm" />
+                <input aria-label="Minimum mark" type="number" min="0" max="200" value={rule.min} onChange={(event) => updateGradeRule(index, "min", event.target.value)} placeholder="Min mark" className="rounded-lg border border-[#E6ECF2] px-3 py-2 text-sm" />
+                <input aria-label="Maximum mark" type="number" min="0" max="200" value={rule.max} onChange={(event) => updateGradeRule(index, "max", event.target.value)} placeholder="Max mark" className="rounded-lg border border-[#E6ECF2] px-3 py-2 text-sm" />
                 <input aria-label="Grade point" type="number" min="0" max="4" step="0.01" value={rule.point} onChange={(event) => updateGradeRule(index, "point", event.target.value)} placeholder="Point / 4.0" className="rounded-lg border border-[#E6ECF2] px-3 py-2 text-sm" />
                 <button type="button" onClick={() => setGradeRules((current) => current.filter((_, ruleIndex) => ruleIndex !== index))} className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-700">Remove</button>
               </div>
