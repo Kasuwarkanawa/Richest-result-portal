@@ -32,6 +32,7 @@ const publishSnapshotSchema = new mongoose.Schema(
       required: true,
       min: 0
     },
+    storageVersion: { type: Number, default: 1, min: 1 },
     frozenResults: { type: [mongoose.Schema.Types.Mixed], default: [], immutable: true },
     frozenSummaries: { type: [mongoose.Schema.Types.Mixed], default: [], immutable: true },
     rolledBackAt: { type: Date, default: null },
