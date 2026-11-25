@@ -37,3 +37,27 @@ test("arrear summary does not count an initial pass as a cleared arrear", () => 
     totalClearedArrears: 0
   });
 });
+
+test("latest attempt selection uses result version when attempt and processing time tie", () => {
+  const processedAt = "2026-10-01T10:00:00.000Z";
+  const latest = selectLatestAttemptPerSubject([
+    {
+      subjectId: "sub-1",
+      attemptNumber: 2,
+      resultVersion: 1,
+      processedAt,
+      passStatus: PASS_STATUSES.FAIL
+    },
+    {
+      subjectId: "sub-1",
+      attemptNumber: 2,
+      resultVersion: 2,
+      processedAt,
+      passStatus: PASS_STATUSES.PASS
+    }
+  ]);
+
+  assert.equal(latest.length, 1);
+  assert.equal(latest[0].resultVersion, 2);
+  assert.equal(latest[0].passStatus, PASS_STATUSES.PASS);
+});
