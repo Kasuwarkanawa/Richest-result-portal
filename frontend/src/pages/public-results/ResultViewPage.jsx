@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import PublicLayout from "../../layouts/PublicLayout";
 import { downloadPublishedResultPdfApi } from "../../api/publicResults.api";
 
@@ -19,6 +19,7 @@ const SummaryCard = ({ label, value }) => (
 
 export default function ResultViewPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [downloading, setDownloading] = useState(false);
 
   const resultData = useMemo(() => {
@@ -29,8 +30,7 @@ export default function ResultViewPage() {
   const handleDownloadPdf = async () => {
     if (!resultData?.student?.registerNumber) return;
 
-    const storedPayloadRaw = sessionStorage.getItem("last_result_search_payload");
-    const payload = storedPayloadRaw ? JSON.parse(storedPayloadRaw) : null;
+    const payload = location.state?.studentPin ? { registerNumber: resultData.student.registerNumber, studentPin: location.state.studentPin } : null;
 
     if (!payload) return;
 
