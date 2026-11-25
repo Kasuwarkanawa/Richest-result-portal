@@ -13,7 +13,7 @@ const gradeRuleSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 0,
-      max: 100
+      max: 40
     },
     max: {
       type: Number,
