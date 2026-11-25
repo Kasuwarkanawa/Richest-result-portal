@@ -71,6 +71,16 @@ export const publishExamSessionService = async ({ examSessionId, notes = "", act
         .select("_id examRegistrationId studentId subjectId sourceSemesterId attemptType attemptNumber internalMark externalMark totalMark passStatus grade gradePoint creditsEarned gradingPolicyId resultVersion processedAt")
         .session(session);
 
+      const invalidFrozenResult = processedResults.find(
+        (item) => !item.studentId?._id || !item.subjectId?._id || !item.sourceSemesterId?._id
+      );
+      if (invalidFrozenResult) {
+        throw new ApiError(
+          400,
+          "Cannot publish: one or more processed results are missing a valid student, subject, or source semester."
+        );
+      }
+
       const processedRegistrationIds = new Set(processedResults.map((item) => String(item.examRegistrationId)));
       const missingRegistrations = examRegistrations.filter((item) => !processedRegistrationIds.has(String(item._id)));
       if (missingRegistrations.length > 0 || processedResults.length !== examRegistrations.length) {
