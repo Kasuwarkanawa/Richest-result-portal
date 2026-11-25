@@ -35,6 +35,26 @@ const findGradeRule = (gradeRules, totalMark) => {
   return gradeRules.find((rule) => totalMark >= rule.min && totalMark <= rule.max) || null;
 };
 
+const selectLatestAttemptPerSubject = (results) => {
+  const latestBySubject = new Map();
+  const sorted = [...results].sort((a, b) => {
+    const attemptDifference = Number(b.attemptNumber || 1) - Number(a.attemptNumber || 1);
+    if (attemptDifference !== 0) return attemptDifference;
+    const processedDifference = new Date(b.processedAt || b.updatedAt || b.createdAt || 0) -
+      new Date(a.processedAt || a.updatedAt || a.createdAt || 0);
+    if (processedDifference !== 0) return processedDifference;
+    return Number(b.resultVersion || 0) - Number(a.resultVersion || 0);
+  });
+
+  for (const result of sorted) {
+    const subjectId = String(result.subjectId?._id || result.subjectId || "");
+    if (subjectId && !latestBySubject.has(subjectId)) {
+      latestBySubject.set(subjectId, result);
+    }
+  }
+  return Array.from(latestBySubject.values());
+};
+
 const buildProcessedDecision = ({ markEntry, subject, gradingPolicy }) => {
   if (markEntry.isMalpractice) {
     return {
@@ -97,34 +117,48 @@ const upsertSemesterSummary = async ({ studentId, examSessionId, semesterId }) =
     sourceSemesterId: semesterId
   }).populate("subjectId", "credits");
 
-  const totalRegisteredSubjects = semesterResults.length;
-  const totalPassedSubjects = semesterResults.filter((r) => r.passStatus === PASS_STATUSES.PASS).length;
-  const totalFailedSubjects = semesterResults.filter((r) => r.passStatus !== PASS_STATUSES.PASS).length;
+  const latestSemesterResults = selectLatestAttemptPerSubject(semesterResults);
+  const totalRegisteredSubjects = latestSemesterResults.length;
+  const totalPassedSubjects = latestSemesterResults.filter((r) => r.passStatus === PASS_STATUSES.PASS).length;
+  const totalFailedSubjects = latestSemesterResults.filter((r) => r.passStatus !== PASS_STATUSES.PASS).length;
 
   const totalRegisteredCredits = semesterResults.reduce(
     (sum, r) => sum + Number(r.subjectId?.credits || 0),
     0
   );
 
-  const totalEarnedCredits = semesterResults.reduce(
+  const totalEarnedCredits = latestSemesterResults.reduce(
     (sum, r) => sum + Number(r.creditsEarned || 0),
     0
   );
 
-  const gpa = calculateGPA(semesterResults);
+  const gpa = calculateGPA(latestSemesterResults);
 
-  const allStudentProcessedResults = await ProcessedResult.find({ studentId });
-  const cgpa = calculateCGPA(allStudentProcessedResults);
+  const allStudentProcessedResults = await ProcessedResult.find({ studentId })
+    .populate("subjectId", "credits");
+  const latestStudentResults = selectLatestAttemptPerSubject(allStudentProcessedResults);
+  const cgpa = calculateCGPA(latestStudentResults);
 
-  const currentArrearCount = semesterResults.filter((r) => r.passStatus !== PASS_STATUSES.PASS).length;
-  const totalPendingArrearCount = allStudentProcessedResults.filter((r) => r.passStatus !== PASS_STATUSES.PASS).length;
-  const totalClearedArrearCount = allStudentProcessedResults.filter(
-    (r) => r.attemptType === "ARREAR" && r.passStatus === PASS_STATUSES.PASS
+  const currentArrearCount = latestSemesterResults.filter(
+    (r) => r.passStatus !== PASS_STATUSES.PASS
+  ).length;
+  const totalPendingArrearCount = latestStudentResults.filter(
+    (r) => r.passStatus !== PASS_STATUSES.PASS
+  ).length;
+  const priorFailedSubjects = new Set(
+    allStudentProcessedResults
+      .filter((r) => r.passStatus !== PASS_STATUSES.PASS)
+      .map((r) => String(r.subjectId?._id || r.subjectId))
+  );
+  const totalClearedArrearCount = latestStudentResults.filter(
+    (r) => r.passStatus === PASS_STATUSES.PASS &&
+      priorFailedSubjects.has(String(r.subjectId?._id || r.subjectId))
   ).length;
 
   const existingSummary = await SemesterSummary.findOne({
     studentId,
-    examSessionId
+    examSessionId,
+    semesterId
   });
 
   if (existingSummary) {
