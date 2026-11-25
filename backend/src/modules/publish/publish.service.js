@@ -230,7 +230,7 @@ export const getPublishSnapshotByIdService = async (publishSnapshotId) => {
   ensureValidObjectId(publishSnapshotId, "publish snapshot");
 
   const snapshot = await populatePublishSnapshot(
-    PublishSnapshot.findById(publishSnapshotId)
+    PublishSnapshot.findById(publishSnapshotId).select("-frozenResults -frozenSummaries")
   );
 
   if (!snapshot) {
