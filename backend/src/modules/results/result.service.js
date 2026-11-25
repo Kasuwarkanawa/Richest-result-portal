@@ -3,11 +3,12 @@ import { MarkEntry } from "../mark-entries/markEntry.model.js";
 import { ExamRegistration } from "../exam-registrations/examRegistration.model.js";
 import { Subject } from "../subjects/subject.model.js";
 import { Student } from "../students/student.model.js";
+import { ExamSession } from "../exam-sessions/examSession.model.js";
 import { GradingPolicy } from "../grading-policies/gradingPolicy.model.js";
 import { ProcessedResult } from "./processedResult.model.js";
 import { SemesterSummary } from "./semesterSummary.model.js";
 import { ApiError } from "../../utils/apiError.js";
-import { MARK_ENTRY_STATUSES, PASS_STATUSES } from "../../config/constants.js";
+import { MARK_ENTRY_STATUSES, PASS_STATUSES, EXAM_SESSION_STATUSES } from "../../config/constants.js";
 import { calculateGPA, calculateCGPA } from "./gpa.utils.js";
 
 const ensureValidObjectId = (id, label) => {
@@ -219,6 +220,16 @@ export const processSingleResultService = async (markEntryId) => {
   if (!student) throw new ApiError(404, "Student not found");
   if (!subject) throw new ApiError(404, "Subject not found");
 
+  const examSession = await ExamSession.findById(examRegistration.examSessionId)
+    .select("status");
+  if (!examSession) throw new ApiError(404, "Exam session not found");
+  if (examSession.status === EXAM_SESSION_STATUSES.PUBLISHED) {
+    throw new ApiError(
+      409,
+      "Results in a published exam session are locked. Roll back publication before processing corrections.",
+    );
+  }
+
   const gradingPolicy = await GradingPolicy.findOne({
     regulationId: student.regulationId,
     subjectType: subject.subjectType,
@@ -240,6 +251,13 @@ export const processSingleResultService = async (markEntryId) => {
   });
 
   let processedResult;
+
+  if (existingProcessedResult?.isPublished) {
+    throw new ApiError(
+      409,
+      "A published result cannot be overwritten. Roll back publication before processing corrections.",
+    );
+  }
 
   if (existingProcessedResult) {
     existingProcessedResult.internalMark = markEntry.internalMark;
