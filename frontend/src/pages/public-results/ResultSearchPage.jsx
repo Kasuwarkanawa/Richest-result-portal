@@ -53,8 +53,6 @@ export default function ResultSearchPage() {
 
       const payload = buildPayload();
 
-      sessionStorage.setItem("last_result_search_payload", JSON.stringify(payload));
-
       const response = await searchPublishedResultApi(payload);
 
       sessionStorage.setItem(
@@ -62,7 +60,7 @@ export default function ResultSearchPage() {
         JSON.stringify(response.data)
       );
 
-      navigate("/results/view");
+      navigate("/results/view", { state: { studentPin: payload.studentPin } });
     } catch (err) {
       const message =
         err?.response?.data?.message || "Failed to fetch latest result";
