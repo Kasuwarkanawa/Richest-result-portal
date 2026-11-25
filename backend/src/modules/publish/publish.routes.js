@@ -26,6 +26,13 @@ router.post(
   publishExamSession
 );
 
+router.post(
+  "/snapshots/:publishSnapshotId/rollback",
+  validate(rollbackPublishSnapshotSchema),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.EXAM_CELL_ADMIN),
+  rollbackPublishSnapshot
+);
+
 router.get(
   "/snapshots",
   roleMiddleware(
