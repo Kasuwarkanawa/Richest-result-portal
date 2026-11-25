@@ -5,10 +5,8 @@ export const searchPublishedResultApi = async (payload) => {
   return response.data;
 };
 
-export const getPublishedResultHistoryApi = async ({ registerNumber, dob }) => {
-  const response = await api.get(
-    `/public-results/history/${encodeURIComponent(registerNumber)}?dob=${encodeURIComponent(dob)}`
-  );
+export const getPublishedResultHistoryApi = async (payload) => {
+  const response = await api.post("/public-results/history/search", payload);
   return response.data;
 };
 
