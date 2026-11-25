@@ -44,15 +44,17 @@ const migrate = async () => {
       Object.keys(index.key).length === 2
     );
 
-    if (oldIndex) {
-      await collection.dropIndex(oldIndex.name);
-      console.log("Dropped legacy unique index:", oldIndex.name);
-    }
-
+    // Keep the legacy uniqueness constraint until the replacement is created.
     await collection.createIndex(
       { studentId: 1, examSessionId: 1, semesterId: 1 },
       { unique: true, name: "student_exam_semester_unique" }
     );
+    console.log("Verified replacement unique index: student_exam_semester_unique");
+
+    if (oldIndex && oldIndex.name !== "student_exam_semester_unique") {
+      await collection.dropIndex(oldIndex.name);
+      console.log("Dropped legacy unique index:", oldIndex.name);
+    }
 
     console.log("Semester summary unique index migration completed.");
   } catch (error) {
