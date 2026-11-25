@@ -123,17 +123,13 @@ export const searchPublishedResultService = async ({ registerNumber, dob }) => {
   );
   if (!targetSnapshot) throw new ApiError(404, "No published result found for this student");
 
-  const frozenResults = snapshotData.get(String(targetSnapshot._id)).results;
-  const latestBySubject = new Map();
-  const sortedResults = [...frozenResults].sort((a, b) =>
-    Number(b.attemptNumber || 1) - Number(a.attemptNumber || 1) ||
-    new Date(b.processedAt || 0) - new Date(a.processedAt || 0)
+  // Build the student's transcript from the newest active publication of each
+  // exam session. A later arrear session may contain only a few subjects, so
+  // limiting the transcript to that one snapshot would hide earlier courses.
+  const allPublishedResults = snapshots.flatMap((snapshot) =>
+    snapshotData.get(String(snapshot._id))?.results || []
   );
-  for (const item of sortedResults) {
-    const key = String(item.subject?.id || item.subject?._id || "");
-    if (key && !latestBySubject.has(key)) latestBySubject.set(key, item);
-  }
-  const subjectResults = [...latestBySubject.values()].sort((a, b) =>
+  const subjectResults = selectLatestAttemptPerSubject(allPublishedResults).sort((a, b) =>
     Number(a.sourceSemester?.number || 0) - Number(b.sourceSemester?.number || 0) ||
     String(a.subject?.code || "").localeCompare(String(b.subject?.code || ""))
   );
@@ -143,9 +139,6 @@ export const searchPublishedResultService = async ({ registerNumber, dob }) => {
     Number(b.semester?.displayOrder || b.semester?.number || 0) -
     Number(a.semester?.displayOrder || a.semester?.number || 0)
   )[0] || null;
-  const allPublishedResults = snapshots.flatMap((snapshot) =>
-    snapshotData.get(String(snapshot._id))?.results || []
-  ).map((item) => ({ ...item, subjectId: item.subject?.id || item.subject?._id || item.subject }));
 
   return {
     student: buildStudentProfile(student),
