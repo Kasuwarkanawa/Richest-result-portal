@@ -1,4 +1,5 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import {
   searchPublishedResult,
   getPublishedResultHistory,
@@ -12,12 +13,25 @@ import {
 
 const router = Router();
 
-router.post("/search", validate(searchPublishedResultSchema), searchPublishedResult);
+const publicResultLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many result lookup attempts. Please try again later.",
+    errors: []
+  }
+});
 
-router.post("/download-pdf", validate(searchPublishedResultSchema), downloadPublishedResultPdf);
+router.post("/search", publicResultLimiter, validate(searchPublishedResultSchema), searchPublishedResult);
+
+router.post("/download-pdf", publicResultLimiter, validate(searchPublishedResultSchema), downloadPublishedResultPdf);
 
 router.get(
   "/history/:registerNumber",
+  publicResultLimiter,
   validate(registerNumberParamSchema),
   getPublishedResultHistory
 );
