@@ -102,7 +102,9 @@ const getValidatedStudent = async ({ registerNumber, dob }) => {
     .populate("currentSemesterId", "number label");
 
   if (!student) {
-    throw new ApiError(404, "Student not found");
+    // Use the same response for unknown register numbers and DOB mismatches
+    // to avoid exposing whether a student record exists.
+    throw new ApiError(401, "Invalid register number or date of birth");
   }
 
   if (!sameDateOnly(student.dob, dob)) {
