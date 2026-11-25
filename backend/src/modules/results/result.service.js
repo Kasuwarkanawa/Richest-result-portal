@@ -122,7 +122,7 @@ const upsertSemesterSummary = async ({ studentId, examSessionId, semesterId }) =
   const totalPassedSubjects = latestSemesterResults.filter((r) => r.passStatus === PASS_STATUSES.PASS).length;
   const totalFailedSubjects = latestSemesterResults.filter((r) => r.passStatus !== PASS_STATUSES.PASS).length;
 
-  const totalRegisteredCredits = semesterResults.reduce(
+  const totalRegisteredCredits = latestSemesterResults.reduce(
     (sum, r) => sum + Number(r.subjectId?.credits || 0),
     0
   );
