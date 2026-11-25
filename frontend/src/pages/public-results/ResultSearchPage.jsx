@@ -100,8 +100,6 @@ export default function ResultSearchPage() {
 
       const payload = buildPayload();
 
-      sessionStorage.setItem("last_result_search_payload", JSON.stringify(payload));
-
       const response = await getPublishedResultHistoryApi({
         registerNumber: payload.registerNumber,
         studentPin: payload.studentPin
