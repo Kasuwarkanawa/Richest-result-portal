@@ -76,11 +76,11 @@ export const publishExamSessionService = async ({ examSessionId, notes = "", act
     "studentId semesterId"
   );
   const summaryKeys = new Set(
-    semesterSummaries.map((item) => `${String(item.studentId)}__${String(item.semesterId)}`)
+    semesterSummaries.map((item) => `${String(item.studentId?._id || item.studentId)}__${String(item.semesterId?._id || item.semesterId)}`)
   );
   const requiredSummaryKeys = new Set(
     processedResults.map(
-      (item) => `${String(item.studentId)}__${String(item.sourceSemesterId)}`
+      (item) => `${String(item.studentId?._id || item.studentId)}__${String(item.sourceSemesterId?._id || item.sourceSemesterId)}`
     )
   );
   const missingSummaries = [...requiredSummaryKeys].filter(
@@ -132,7 +132,7 @@ export const publishExamSessionService = async ({ examSessionId, notes = "", act
   examSession.resultPublishedBy = actorUserId;
   await examSession.save();
 
-  const uniqueStudents = new Set(processedResults.map((item) => String(item.studentId)));
+  const uniqueStudents = new Set(processedResults.map((item) => String(item.studentId?._id || item.studentId)));
 
   const snapshot = await PublishSnapshot.create({
     examSessionId,
