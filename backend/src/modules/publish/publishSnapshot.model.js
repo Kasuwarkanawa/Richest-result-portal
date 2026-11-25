@@ -32,6 +32,8 @@ const publishSnapshotSchema = new mongoose.Schema(
       required: true,
       min: 0
     },
+    frozenResults: { type: [mongoose.Schema.Types.Mixed], default: [], immutable: true },
+    frozenSummaries: { type: [mongoose.Schema.Types.Mixed], default: [], immutable: true },
     rolledBackAt: { type: Date, default: null },
     rolledBackBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     rollbackReason: { type: String, trim: true, default: "" },
