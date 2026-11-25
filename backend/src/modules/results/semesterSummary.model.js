@@ -88,7 +88,7 @@ const semesterSummarySchema = new mongoose.Schema(
 );
 
 semesterSummarySchema.index({ studentId: 1, semesterId: 1 });
-semesterSummarySchema.index({ studentId: 1, examSessionId: 1 }, { unique: true });
+semesterSummarySchema.index({ studentId: 1, examSessionId: 1, semesterId: 1 }, { unique: true });
 semesterSummarySchema.index({ isPublished: 1 });
 
 export const SemesterSummary = mongoose.model("SemesterSummary", semesterSummarySchema);
