@@ -14,7 +14,7 @@ const gradeRuleSchema = z.object({
   point: z
     .number({ invalid_type_error: "Grade point must be a number" })
     .min(0)
-    .max(10)
+    .max(4)
 });
 
 const subjectTypeValues = Object.values(SUBJECT_TYPES);
