@@ -295,7 +295,7 @@ export default function ResultSearchPage() {
         </section>
 
         <footer className="rounded-[28px] border border-[#E6ECF2] bg-white px-6 py-5 text-center text-sm text-[#6B7A8C] shadow-sm">
-          © {new Date().getFullYear()} The Kavery Engineering College (Autonomous), Mecheri. Student Result Portal.
+          © {new Date().getFullYear()} HAJIYA RAKIYA GERAWA COLLEGE OF HEALTH SCIENCE AND TECHNOLOGY KANO (RIGCHEST). Student Result Portal.
         </footer>
       </div>
     </PublicLayout>
