@@ -415,12 +415,18 @@ export default function StudentsPage() {
       if (editingStudent?._id) {
         await updateStudentApi(editingStudent._id, payload);
         await loadData();
-        closeModal();
+        setModalOpen(false);
+        setEditingStudent(null);
+        setForm(emptyForm);
+        setFormError("");
       } else {
         const response = await createStudentApi(payload);
         setPinNotice({ studentName: response?.data?.student?.fullName || payload.fullName, registerNumber: response?.data?.student?.registerNumber || payload.registerNumber, pin: response?.data?.studentPin });
         await loadData();
-        closeModal();
+        setModalOpen(false);
+        setEditingStudent(null);
+        setForm(emptyForm);
+        setFormError("");
       }
     } catch (err) {
       setFormError(extractErrorMessage(err));
