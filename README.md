@@ -458,6 +458,7 @@ The application includes several security mechanisms:
 SRMS_Project/
 │
 ├── backend/
+│   ├── index.js                 # Vercel Express entry point
 │   ├── src/
 │   │   ├── app.js
 │   │   ├── server.js
@@ -537,7 +538,6 @@ SRMS_Project/
 │   ├── public/
 │   │   └── college-logo.png
 │   │
-│   ├── vercel.json
 │   └── package.json
 │
 ├── atlas-import/
@@ -694,13 +694,42 @@ Never commit `.env` files or production secrets to GitHub.
 
 ## Deployment
 
-Suggested production architecture:
+Production architecture selected for this repository:
 
-- Frontend: Vercel or another static hosting provider
-- Backend: Render or another Node.js hosting provider
-- Database: MongoDB Atlas
+- Frontend: GitHub Pages (Vite build from the `frontend` directory)
+- Backend: Vercel Node.js / Express deployment (Vercel project root: `backend`)
+- Database: MongoDB Atlas only
+- Automation: GitHub Actions
 
-**Deployment status:** This RIGCHEST repository has not yet been configured or verified as a live production deployment. Set production environment variables, provision MongoDB, deploy both services, and run the database migration only after taking a verified backup.
+### Vercel backend configuration
+
+Set the Vercel project's Root Directory to `backend`. The backend exposes an Express app from `backend/index.js` and connects to MongoDB on incoming requests.
+
+Configure these environment variables in the Vercel dashboard (never commit their values):
+
+```text
+NODE_ENV=production
+MONGODB_URI=<MongoDB Atlas connection string>
+JWT_ACCESS_SECRET=<long random secret>
+JWT_REFRESH_SECRET=<different long random secret>
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
+FRONTEND_URL=https://kasuwarkanawa.github.io
+INITIAL_ADMIN_EMAIL=<college admin email>
+INITIAL_ADMIN_PASSWORD=<strong password of at least 12 characters>
+INITIAL_ADMIN_NAME=<admin name>
+INITIAL_ADMIN_MOBILE=<admin phone>
+```
+
+The backend accepts either `MONGODB_URI` or the legacy `MONGO_URI` variable. Restrict the MongoDB Atlas database user's network access appropriately and use a least-privilege database user.
+
+After the first Vercel deployment, copy its API origin and set the GitHub repository variable `VITE_API_BASE_URL` to the full API base URL ending in `/api`, for example `https://your-project.vercel.app/api`. Do not use the example value literally.
+
+### GitHub Pages frontend configuration
+
+In GitHub repository Settings → Pages, select **GitHub Actions** as the deployment source. The workflow `.github/workflows/deploy-pages.yml` builds the frontend and publishes `frontend/dist`. It requires the repository variable `VITE_API_BASE_URL` to be configured first. The Vite base path and SPA fallback are configured for this repository's Pages URL.
+
+**Deployment status:** The deployment configuration is being prepared on a separate branch. The portal is not yet live. Production launch still requires the Vercel project, private environment variables, GitHub Pages settings, MongoDB Atlas access configuration, and end-to-end verification. Run any database migration only after a verified backup.
 
 ## Testing
 
