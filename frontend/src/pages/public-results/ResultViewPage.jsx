@@ -22,10 +22,7 @@ export default function ResultViewPage() {
   const location = useLocation();
   const [downloading, setDownloading] = useState(false);
 
-  const resultData = useMemo(() => {
-    const raw = sessionStorage.getItem("latest_published_result");
-    return raw ? JSON.parse(raw) : null;
-  }, []);
+  const resultData = location.state?.resultData || null;
 
   const handleDownloadPdf = async () => {
     if (!resultData?.student?.registerNumber) return;
