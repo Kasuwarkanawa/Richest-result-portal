@@ -51,7 +51,7 @@ const fileFilter = (_req, file, cb) => {
   cb(null, true);
 };
 
-const upload = multer({ storage, fileFilter });
+const upload = multer({\n  storage,\n  fileFilter,\n  limits: { fileSize: 5 * 1024 * 1024 }\n});
 
 router.use(authMiddleware);
 
