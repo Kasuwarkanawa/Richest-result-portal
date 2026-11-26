@@ -46,8 +46,10 @@ The system provides separate functionality for administrators and students. Admi
 
 ### Student Result Portal
 
-* No student login required
-* Register number and date of birth based result search
+* No student account login required
+* Register number and admin-issued 10-digit Student PIN based result search
+* Student PINs are generated on individual creation and Excel import
+* Student PINs are stored as bcrypt hashes and can be reset by authorized administrators
 * Published semester result viewing
 * Subject-wise grade display
 * GPA display
@@ -382,12 +384,14 @@ The system also maintains publish snapshots to track different publication versi
 
 ## Student Result Portal
 
-Students can access the result portal without creating an account.
+Students can access the result portal without creating a student account.
 
 The student provides:
 
 * Register Number
-* Date of Birth
+* Admin-issued 10-digit Student PIN
+
+Administrators can regenerate a PIN for an existing student. The raw PIN is shown only once when generated or during the immediate bulk-import result; only its bcrypt hash is stored in MongoDB.
 
 The system validates the submitted information and returns only published results.
 
@@ -722,7 +726,7 @@ Recommended testing flow:
 
 * GitHub Actions runs backend automated tests and a frontend production build on pull requests.
 * The current CI run for the RIGCHEST changes completed successfully; this is not a substitute for end-to-end testing with a real MongoDB deployment.
-* Student result lookup currently uses registration number and date of birth; consider an additional student PIN or OTP before exposing real student records publicly.
+* Public result lookup requires a register number and an admin-issued 10-digit Student PIN. PINs are stored as bcrypt hashes; older student records must have a PIN issued by an administrator before public lookup can succeed.
 * Production monitoring, backups, deployment secrets, and a full end-to-end acceptance test remain deployment tasks.
 
 ## Future Enhancements
