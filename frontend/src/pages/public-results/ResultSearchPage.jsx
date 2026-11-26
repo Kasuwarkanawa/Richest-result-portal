@@ -55,12 +55,11 @@ export default function ResultSearchPage() {
 
       const response = await searchPublishedResultApi(payload);
 
-      sessionStorage.setItem(
-        "latest_published_result",
-        JSON.stringify(response.data)
-      );
-
-      navigate("/results/view", { state: { studentPin: payload.studentPin } });
+      // Keep result data and PIN in transient router state only. Do not persist
+      // student academic records or access credentials in browser storage.
+      navigate("/results/view", {
+        state: { studentPin: payload.studentPin, resultData: response.data }
+      });
     } catch (err) {
       const message =
         err?.response?.data?.message || "Failed to fetch latest result";
@@ -105,12 +104,8 @@ export default function ResultSearchPage() {
         studentPin: payload.studentPin
       });
 
-      sessionStorage.setItem(
-        "published_result_history",
-        JSON.stringify(response.data)
-      );
-
-      navigate("/results/history");
+      // History and credentials stay in transient navigation state only.
+      navigate("/results/history", { state: { historyData: response.data } });
     } catch (err) {
       const message =
         err?.response?.data?.message || "Failed to fetch result history";
