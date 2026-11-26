@@ -14,3 +14,8 @@ test("student PIN hash verifies only the original PIN", async () => {
   assert.equal(await verifyStudentPin(pin, hash), true);
   assert.equal(await verifyStudentPin("0000000000", hash), false);
 });
+
+
+test("PIN verification safely rejects a missing hash", async () => {
+  assert.equal(await verifyStudentPin("1234567890", null), false);
+});
