@@ -1,4 +1,4 @@
-import { asyncHandler } from "../../utils/asyncHandler.js";
+import fs from "node:fs/promises";\nimport { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiResponse } from "../../utils/apiResponse.js";
 import {
   createStudentService,
@@ -67,11 +67,21 @@ export const importStudents = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Excel file is required");
   }
 
-  const result = await importStudentsFromExcel(req.file.path);
+  try {
+    const result = await importStudentsFromExcel(req.file.path);
 
-  return res.status(200).json(
-    new ApiResponse(200, "Student import completed", result)
-  );
+    return res.status(200).json(
+      new ApiResponse(200, "Student import completed", result)
+    );
+  } finally {
+    try {
+      await fs.unlink(req.file.path);
+    } catch (error) {
+      if (error.code !== "ENOENT") {
+        // Cleanup failures should not hide the original import result/error.
+      }
+    }
+  }
 });
 
 import xlsx from "xlsx";
