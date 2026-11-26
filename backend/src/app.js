@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 
 import { env } from "./config/env.js";
+import { connectDB } from "./config/db.js";
 import apiRoutes from "./routes/index.js";
 import { notFoundMiddleware } from "./middlewares/notFound.middleware.js";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
@@ -33,9 +34,7 @@ app.use(
 );
 
 app.use(helmet());
-
 app.use(morgan("dev"));
-
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -52,15 +51,24 @@ const globalLimiter = rateLimit({
 
 app.use(globalLimiter);
 
+// Reuse the MongoDB connection across Vercel serverless invocations.
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "College Result Portal API is live"
+    message: "RIGCHEST Result Portal API is live"
   });
 });
 
 app.use("/api", apiRoutes);
-
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);
 
