@@ -82,7 +82,11 @@ const loadStudentSnapshotData = async (snapshots, studentId) => {
 const getValidatedStudent = async ({ registerNumber, studentPin }) => {
   const normalizedRegisterNumber = String(registerNumber || "").trim().toUpperCase();
   const student = await Student.findOne({ registerNumber: normalizedRegisterNumber }).select("+studentPinHash");
-  if (!student?.studentPinHash || !studentPin || !(await verifyStudentPin(String(studentPin), student.studentPinHash))) {
+  const hasPinHash = Boolean(student?.studentPinHash);
+  // verifyStudentPin uses a dummy bcrypt hash when the student/hash is absent,
+  // so unknown register numbers follow the same expensive comparison path.
+  const pinMatches = await verifyStudentPin(String(studentPin || ""), student?.studentPinHash);
+  if (!student || !hasPinHash || !pinMatches) {
     // Keep unknown register numbers and incorrect PINs indistinguishable.
     throw new ApiError(401, "Invalid register number or Student PIN");
   }
