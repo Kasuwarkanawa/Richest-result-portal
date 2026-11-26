@@ -231,7 +231,7 @@ export default function ResultSearchPage() {
 
                 <div className="rounded-2xl bg-white p-4 shadow-sm">
                   Use the exact <span className="font-semibold text-[#243447]">Register Number</span> and
-                  <span className="font-semibold text-[#243447]"> Date of Birth</span> as per college records.
+                  your <span className="font-semibold text-[#243447]">10-digit Student PIN</span> issued by the College.
                 </div>
 
                 <div className="rounded-2xl bg-white p-4 shadow-sm">
