@@ -1,5 +1,4 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
 import PublicLayout from "../../layouts/PublicLayout";
 
 const HistoryMetricCard = ({ label, value }) => (
