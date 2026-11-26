@@ -1,15 +1,11 @@
 import app from "./app.js";
-import { connectDB } from "./config/db.js";
-import { env } from "./config/env.js";
 
-const startServer = async () => {
-  await connectDB();
+if (process.env.VERCEL !== "1") {
+  const port = Number(process.env.PORT) || 5000;
 
-  app.listen(env.port, () => {
-    console.log(
-      `Server running in ${env.nodeEnv} mode on http://localhost:${env.port}`
-    );
+  app.listen(port, () => {
+    console.log(`Server running in ${process.env.NODE_ENV || "development"} mode on http://localhost:${port}`);
   });
-};
+}
 
-startServer();
+export default app;

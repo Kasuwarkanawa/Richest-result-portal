@@ -1,8 +1,8 @@
 {
   "name": "college-result-portal-backend",
   "version": "1.0.0",
-  "description": "Backend for College Result Portal",
-  "main": "src/server.js",
+  "description": "Backend for RIGCHEST College Result Portal",
+  "main": "index.js",
   "type": "module",
   "scripts": {
     "dev": "nodemon src/server.js",
