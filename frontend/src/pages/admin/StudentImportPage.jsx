@@ -131,6 +131,32 @@ export default function StudentBulkImportPage() {
   const insertedStudents = importResult?.insertedStudents || [];
   const skippedRows = importResult?.skippedRows || [];
 
+  const handleDownloadStudentPins = () => {
+    if (insertedStudents.length === 0) return;
+
+    const escapeCsvCell = (value) => {
+      const raw = String(value ?? "");
+      // Prevent spreadsheet formula execution in exported user-controlled fields.
+      const safe = /^[\\t\\r=+\\-@]/.test(raw) ? `'${raw}` : raw;
+      return `"${safe.replace(/"/g, '""')}"`;
+    };
+
+    const rows = [
+      ["Register Number", "Full Name", "Student PIN"],
+      ...insertedStudents.map((student) => [
+        student.registerNumber,
+        student.fullName,
+        student.studentPin
+      ])
+    ];
+    const csv = "\\uFEFF" + rows.map((row) => row.map(escapeCsvCell).join(",")).join("\\r\\n");
+    const date = new Date().toISOString().slice(0, 10);
+    triggerBrowserDownload(
+      new Blob([csv], { type: "text/csv;charset=utf-8" }),
+      `RIGCHEST-student-pins-${date}.csv`
+    );
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -247,9 +273,18 @@ export default function StudentBulkImportPage() {
           <div className="mt-5 space-y-5">
             {insertedStudents.length > 0 ? (
               <div className="rounded-2xl border border-[#D6EFD9] bg-[#F6FCF7] p-5">
-                <h4 className="text-base font-semibold text-[#243447]">
-                  Inserted Students
-                </h4>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <h4 className="text-base font-semibold text-[#243447]">
+                    Inserted Students
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={handleDownloadStudentPins}
+                    className="rounded-xl border border-[#BFD8C4] bg-white px-4 py-2 text-sm font-medium text-[#3F7D56] hover:bg-[#ECF8EF]"
+                  >
+                    Download Student PINs CSV
+                  </button>
+                </div>
 
                 <div className="mt-4 hidden overflow-x-auto xl:block">
                   <table className="min-w-full text-sm">
