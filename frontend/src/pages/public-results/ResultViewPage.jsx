@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import PublicLayout from "../../layouts/PublicLayout";
 import { downloadPublishedResultPdfApi } from "../../api/publicResults.api";
