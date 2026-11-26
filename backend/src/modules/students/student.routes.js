@@ -21,6 +21,7 @@ import {
 import { authMiddleware } from "../../middlewares/auth.middleware.js";
 import { roleMiddleware } from "../../middlewares/role.middleware.js";
 import { ROLES } from "../../config/constants.js";
+import { ApiError } from "../../utils/apiError.js";
 
 const router = Router();
 
@@ -45,7 +46,7 @@ const fileFilter = (_req, file, cb) => {
   const ext = path.extname(file.originalname).toLowerCase();
 
   if (!allowedExtensions.includes(ext)) {
-    return cb(new Error("Only .xlsx, .xls, and .csv files are allowed"));
+    return cb(new ApiError(400, "Only .xlsx, .xls, and .csv files are allowed"));
   }
 
   cb(null, true);
