@@ -286,9 +286,8 @@ export default function StudentBulkImportPage() {
                       <p className="text-sm font-medium text-[#243447]">
                         {student.registerNumber}
                       </p>
-                      <p className="mt-2 text-sm text-[#3F7D56]">
-                        {student.fullName}
-                      </p>
+                      <p className="mt-2 text-sm text-[#3F7D56]">{student.fullName}</p>
+                      <p className="mt-2 text-sm font-semibold text-[#243447]">Student PIN: <span className="font-mono tracking-wider">{student.studentPin}</span></p>
                     </div>
                   ))}
                 </div>
