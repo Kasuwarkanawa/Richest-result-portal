@@ -137,7 +137,7 @@ export default function StudentBulkImportPage() {
     const escapeCsvCell = (value) => {
       const raw = String(value ?? "");
       // Prevent spreadsheet formula execution in exported user-controlled fields.
-      const safe = /^[\\t\\r=+\\-@]/.test(raw) ? `'${raw}` : raw;
+      const safe = /^[\t\r=+\-@]/.test(raw) ? "'" + raw : raw;
       return `"${safe.replace(/"/g, '""')}"`;
     };
 
@@ -149,7 +149,7 @@ export default function StudentBulkImportPage() {
         student.studentPin
       ])
     ];
-    const csv = "\\uFEFF" + rows.map((row) => row.map(escapeCsvCell).join(",")).join("\\r\\n");
+    const csv = "\uFEFF" + rows.map((row) => row.map(escapeCsvCell).join(",")).join("\r\n");
     const date = new Date().toISOString().slice(0, 10);
     triggerBrowserDownload(
       new Blob([csv], { type: "text/csv;charset=utf-8" }),
