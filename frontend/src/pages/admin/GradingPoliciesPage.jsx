@@ -130,6 +130,7 @@ export default function GradingPoliciesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [gradeRules, setGradeRules] = useState([]);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -205,6 +206,7 @@ export default function GradingPoliciesPage() {
   const openCreateModal = () => {
     setEditingPolicy(null);
     setForm(emptyForm);
+    setGradeRules([{ grade: "", min: "", max: "", point: "" }]);
     setFormError("");
     setModalOpen(true);
   };
@@ -227,6 +229,14 @@ export default function GradingPoliciesPage() {
       cgpaFormulaType: policy?.cgpaFormulaType || "CBCS",
       status: policy?.isActive ? "ACTIVE" : "INACTIVE",
     });
+    setGradeRules(
+      (Array.isArray(policy?.gradeRules) ? policy.gradeRules : []).map((rule) => ({
+        grade: rule.grade ?? "",
+        min: String(rule.min ?? ""),
+        max: String(rule.max ?? ""),
+        point: String(rule.point ?? ""),
+      }))
+    );
     setFormError("");
     setModalOpen(true);
   };
@@ -236,6 +246,7 @@ export default function GradingPoliciesPage() {
     setModalOpen(false);
     setEditingPolicy(null);
     setForm(emptyForm);
+    setGradeRules([]);
     setFormError("");
   };
 
@@ -299,18 +310,28 @@ export default function GradingPoliciesPage() {
       return "Total Min cannot be greater than Total Max";
     }
 
+    if (gradeRules.length === 0) return "Add at least one grade rule";
+    for (const rule of gradeRules) {
+      const min = Number(rule.min);
+      const max = Number(rule.max);
+      const point = Number(rule.point);
+      if (!rule.grade.trim()) return "Every grade rule needs a grade label";
+      if (rule.min === "" || rule.max === "" || rule.point === "") return "Complete every grade rule field";
+      if (![min, max, point].every(Number.isFinite)) return "Grade rule values must be valid numbers";
+      if (min < 0 || max > 200 || min > max) return "Grade mark ranges must be between 0 and 200, with minimum not above maximum";
+      if (point < 0 || point > 4) return "Grade points must be between 0 and 4.0";
+    }
+
     return "";
   };
 
-  const defaultGradeRules = [
-    { grade: "O", min: 91, max: 100, point: 10 },
-    { grade: "A+", min: 81, max: 90, point: 9 },
-    { grade: "A", min: 71, max: 80, point: 8 },
-    { grade: "B+", min: 61, max: 70, point: 7 },
-    { grade: "B", min: 57, max: 60, point: 6 },
-    { grade: "C", min: 50, max: 56, point: 5 },
-    { grade: "U", min: 0, max: 49, point: 0 },
-  ];
+  const updateGradeRule = (index, field, value) => {
+    setGradeRules((current) =>
+      current.map((rule, ruleIndex) =>
+        ruleIndex === index ? { ...rule, [field]: value } : rule
+      )
+    );
+  };
 
   const buildPayload = () => ({
     regulationId: form.regulationId,
@@ -324,7 +345,12 @@ export default function GradingPoliciesPage() {
     gpaFormulaType: form.gpaFormulaType,
     cgpaFormulaType: form.cgpaFormulaType,
     isActive: form.status === "ACTIVE",
-    gradeRules: defaultGradeRules,
+    gradeRules: gradeRules.map((rule) => ({
+      grade: rule.grade.trim().toUpperCase(),
+      min: Number(rule.min),
+      max: Number(rule.max),
+      point: Number(rule.point),
+    })),
   });
 
   const handleSubmit = async (event) => {
@@ -693,6 +719,31 @@ export default function GradingPoliciesPage() {
                 className="w-full rounded-2xl border border-[#E6ECF2] px-4 py-3 text-[#243447] outline-none placeholder:text-[#A3AFBF] focus:border-[#5F7FAF]"
               />
             </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-[#243447]">Grade Rules (4.0 Scale)</h3>
+                <p className="text-xs text-[#6B7A8C]">Enter the official mark ranges and grade points approved by the college.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGradeRules((current) => [...current, { grade: "", min: "", max: "", point: "" }])}
+                className="rounded-xl border border-[#E6ECF2] px-3 py-2 text-sm font-medium text-[#4A6A94]"
+              >
+                Add Grade
+              </button>
+            </div>
+            {gradeRules.map((rule, index) => (
+              <div key={index} className="grid grid-cols-2 gap-3 rounded-xl border border-[#E6ECF2] p-3 sm:grid-cols-5">
+                <input aria-label="Grade label" value={rule.grade} onChange={(event) => updateGradeRule(index, "grade", event.target.value)} placeholder="Grade" className="rounded-lg border border-[#E6ECF2] px-3 py-2 text-sm" />
+                <input aria-label="Minimum mark" type="number" min="0" max="200" value={rule.min} onChange={(event) => updateGradeRule(index, "min", event.target.value)} placeholder="Min mark" className="rounded-lg border border-[#E6ECF2] px-3 py-2 text-sm" />
+                <input aria-label="Maximum mark" type="number" min="0" max="200" value={rule.max} onChange={(event) => updateGradeRule(index, "max", event.target.value)} placeholder="Max mark" className="rounded-lg border border-[#E6ECF2] px-3 py-2 text-sm" />
+                <input aria-label="Grade point" type="number" min="0" max="4" step="0.01" value={rule.point} onChange={(event) => updateGradeRule(index, "point", event.target.value)} placeholder="Point / 4.0" className="rounded-lg border border-[#E6ECF2] px-3 py-2 text-sm" />
+                <button type="button" onClick={() => setGradeRules((current) => current.filter((_, ruleIndex) => ruleIndex !== index))} className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-700">Remove</button>
+              </div>
+            ))}
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">

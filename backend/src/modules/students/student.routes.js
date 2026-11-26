@@ -9,7 +9,8 @@ import {
   updateStudent,
   toggleStudentAcademicStatus,
   importStudents,
-  downloadStudentImportTemplate
+  downloadStudentImportTemplate,
+  regenerateStudentPin
 } from "./student.controller.js";
 import { validate } from "../../middlewares/validate.middleware.js";
 import {
@@ -20,6 +21,7 @@ import {
 import { authMiddleware } from "../../middlewares/auth.middleware.js";
 import { roleMiddleware } from "../../middlewares/role.middleware.js";
 import { ROLES } from "../../config/constants.js";
+import { ApiError } from "../../utils/apiError.js";
 
 const router = Router();
 
@@ -40,17 +42,17 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (_req, file, cb) => {
-  const allowedExtensions = [".xlsx", ".xls"];
+  const allowedExtensions = [".xlsx", ".xls", ".csv"];
   const ext = path.extname(file.originalname).toLowerCase();
 
   if (!allowedExtensions.includes(ext)) {
-    return cb(new Error("Only .xlsx and .xls files are allowed"));
+    return cb(new ApiError(400, "Only .xlsx, .xls, and .csv files are allowed"));
   }
 
   cb(null, true);
 };
 
-const upload = multer({ storage, fileFilter });
+const upload = multer({\n  storage,\n  fileFilter,\n  limits: { fileSize: 5 * 1024 * 1024 }\n});
 
 router.use(authMiddleware);
 
@@ -104,6 +106,13 @@ router.put(
   validate(updateStudentSchema),
   roleMiddleware(ROLES.SUPER_ADMIN, ROLES.EXAM_CELL_ADMIN, ROLES.DEPARTMENT_ADMIN),
   updateStudent
+);
+
+router.post(
+  "/:studentId/regenerate-pin",
+  validate(studentIdParamSchema),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.EXAM_CELL_ADMIN, ROLES.DEPARTMENT_ADMIN),
+  regenerateStudentPin
 );
 
 router.patch(

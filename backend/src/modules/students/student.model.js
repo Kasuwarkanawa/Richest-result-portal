@@ -24,6 +24,15 @@ const studentSchema = new mongoose.Schema(
       type: Date,
       required: true
     },
+    studentPinHash: {
+      type: String,
+      select: false,
+      default: null
+    },
+    studentPinGeneratedAt: {
+      type: Date,
+      default: null
+    },
     gender: {
       type: String,
       trim: true,

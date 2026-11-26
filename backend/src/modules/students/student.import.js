@@ -7,6 +7,7 @@ import { Regulation } from "../regulations/regulation.model.js";
 import { Batch } from "../batches/batch.model.js";
 import { Semester } from "../semesters/semester.model.js";
 import { ACADEMIC_STATUSES } from "../../config/constants.js";
+import { generateStudentPin, hashStudentPin } from "./studentPin.js";
 
 const normalizeString = (value) => String(value ?? "").trim();
 const normalizeUpper = (value) => normalizeString(value).toUpperCase();
@@ -141,11 +142,14 @@ export const importStudentsFromExcel = async (filePath) => {
         throw new Error(`Student with register number ${registerNumber} already exists`);
       }
 
+      const studentPin = generateStudentPin();
       const student = await Student.create({
         registerNumber,
         universityRegisterNo,
         fullName,
         dob,
+        studentPinHash: await hashStudentPin(studentPin),
+        studentPinGeneratedAt: new Date(),
         gender,
         mobileNo,
         email,
@@ -162,7 +166,8 @@ export const importStudentsFromExcel = async (filePath) => {
       summary.insertedStudents.push({
         _id: student._id,
         registerNumber: student.registerNumber,
-        fullName: student.fullName
+        fullName: student.fullName,
+        studentPin
       });
     } catch (error) {
       summary.skippedCount += 1;

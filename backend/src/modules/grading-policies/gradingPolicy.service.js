@@ -17,10 +17,28 @@ const ensureRegulationExists = async (regulationId) => {
   return regulation;
 };
 
-const validateGradeRules = (gradeRules) => {
-  for (const rule of gradeRules) {
+export const validateGradeRules = (gradeRules) => {
+  const orderedRules = [...gradeRules].sort((a, b) => a.min - b.min);
+  const seenGrades = new Set();
+
+  for (let index = 0; index < orderedRules.length; index += 1) {
+    const rule = orderedRules[index];
+    const normalizedGrade = String(rule.grade || "").trim().toUpperCase();
+
     if (rule.min > rule.max) {
       throw new ApiError(400, `Grade rule ${rule.grade}: min cannot be greater than max`);
+    }
+    if (seenGrades.has(normalizedGrade)) {
+      throw new ApiError(400, `Grade label ${normalizedGrade} must be unique`);
+    }
+    seenGrades.add(normalizedGrade);
+
+    const previousRule = orderedRules[index - 1];
+    if (previousRule && rule.min <= previousRule.max) {
+      throw new ApiError(
+        400,
+        `Grade ranges for ${previousRule.grade} and ${rule.grade} overlap`
+      );
     }
   }
 };

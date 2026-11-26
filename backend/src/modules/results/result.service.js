@@ -3,11 +3,12 @@ import { MarkEntry } from "../mark-entries/markEntry.model.js";
 import { ExamRegistration } from "../exam-registrations/examRegistration.model.js";
 import { Subject } from "../subjects/subject.model.js";
 import { Student } from "../students/student.model.js";
+import { ExamSession } from "../exam-sessions/examSession.model.js";
 import { GradingPolicy } from "../grading-policies/gradingPolicy.model.js";
 import { ProcessedResult } from "./processedResult.model.js";
 import { SemesterSummary } from "./semesterSummary.model.js";
 import { ApiError } from "../../utils/apiError.js";
-import { MARK_ENTRY_STATUSES, PASS_STATUSES } from "../../config/constants.js";
+import { MARK_ENTRY_STATUSES, PASS_STATUSES, EXAM_SESSION_STATUSES } from "../../config/constants.js";
 import { calculateGPA, calculateCGPA } from "./gpa.utils.js";
 
 const ensureValidObjectId = (id, label) => {
@@ -33,6 +34,26 @@ const populateSemesterSummary = (query) =>
 
 const findGradeRule = (gradeRules, totalMark) => {
   return gradeRules.find((rule) => totalMark >= rule.min && totalMark <= rule.max) || null;
+};
+
+const selectLatestAttemptPerSubject = (results) => {
+  const latestBySubject = new Map();
+  const sorted = [...results].sort((a, b) => {
+    const attemptDifference = Number(b.attemptNumber || 1) - Number(a.attemptNumber || 1);
+    if (attemptDifference !== 0) return attemptDifference;
+    const processedDifference = new Date(b.processedAt || b.updatedAt || b.createdAt || 0) -
+      new Date(a.processedAt || a.updatedAt || a.createdAt || 0);
+    if (processedDifference !== 0) return processedDifference;
+    return Number(b.resultVersion || 0) - Number(a.resultVersion || 0);
+  });
+
+  for (const result of sorted) {
+    const subjectId = String(result.subjectId?._id || result.subjectId || "");
+    if (subjectId && !latestBySubject.has(subjectId)) {
+      latestBySubject.set(subjectId, result);
+    }
+  }
+  return Array.from(latestBySubject.values());
 };
 
 const buildProcessedDecision = ({ markEntry, subject, gradingPolicy }) => {
@@ -97,34 +118,48 @@ const upsertSemesterSummary = async ({ studentId, examSessionId, semesterId }) =
     sourceSemesterId: semesterId
   }).populate("subjectId", "credits");
 
-  const totalRegisteredSubjects = semesterResults.length;
-  const totalPassedSubjects = semesterResults.filter((r) => r.passStatus === PASS_STATUSES.PASS).length;
-  const totalFailedSubjects = semesterResults.filter((r) => r.passStatus !== PASS_STATUSES.PASS).length;
+  const latestSemesterResults = selectLatestAttemptPerSubject(semesterResults);
+  const totalRegisteredSubjects = latestSemesterResults.length;
+  const totalPassedSubjects = latestSemesterResults.filter((r) => r.passStatus === PASS_STATUSES.PASS).length;
+  const totalFailedSubjects = latestSemesterResults.filter((r) => r.passStatus !== PASS_STATUSES.PASS).length;
 
-  const totalRegisteredCredits = semesterResults.reduce(
+  const totalRegisteredCredits = latestSemesterResults.reduce(
     (sum, r) => sum + Number(r.subjectId?.credits || 0),
     0
   );
 
-  const totalEarnedCredits = semesterResults.reduce(
+  const totalEarnedCredits = latestSemesterResults.reduce(
     (sum, r) => sum + Number(r.creditsEarned || 0),
     0
   );
 
-  const gpa = calculateGPA(semesterResults);
+  const gpa = calculateGPA(latestSemesterResults);
 
-  const allStudentProcessedResults = await ProcessedResult.find({ studentId });
-  const cgpa = calculateCGPA(allStudentProcessedResults);
+  const allStudentProcessedResults = await ProcessedResult.find({ studentId })
+    .populate("subjectId", "credits");
+  const latestStudentResults = selectLatestAttemptPerSubject(allStudentProcessedResults);
+  const cgpa = calculateCGPA(latestStudentResults);
 
-  const currentArrearCount = semesterResults.filter((r) => r.passStatus !== PASS_STATUSES.PASS).length;
-  const totalPendingArrearCount = allStudentProcessedResults.filter((r) => r.passStatus !== PASS_STATUSES.PASS).length;
-  const totalClearedArrearCount = allStudentProcessedResults.filter(
-    (r) => r.attemptType === "ARREAR" && r.passStatus === PASS_STATUSES.PASS
+  const currentArrearCount = latestSemesterResults.filter(
+    (r) => r.passStatus !== PASS_STATUSES.PASS
+  ).length;
+  const totalPendingArrearCount = latestStudentResults.filter(
+    (r) => r.passStatus !== PASS_STATUSES.PASS
+  ).length;
+  const priorFailedSubjects = new Set(
+    allStudentProcessedResults
+      .filter((r) => r.passStatus !== PASS_STATUSES.PASS)
+      .map((r) => String(r.subjectId?._id || r.subjectId))
+  );
+  const totalClearedArrearCount = latestStudentResults.filter(
+    (r) => r.passStatus === PASS_STATUSES.PASS &&
+      priorFailedSubjects.has(String(r.subjectId?._id || r.subjectId))
   ).length;
 
   const existingSummary = await SemesterSummary.findOne({
     studentId,
-    examSessionId
+    examSessionId,
+    semesterId
   });
 
   if (existingSummary) {
@@ -185,6 +220,16 @@ export const processSingleResultService = async (markEntryId) => {
   if (!student) throw new ApiError(404, "Student not found");
   if (!subject) throw new ApiError(404, "Subject not found");
 
+  const examSession = await ExamSession.findById(examRegistration.examSessionId)
+    .select("status");
+  if (!examSession) throw new ApiError(404, "Exam session not found");
+  if (examSession.status === EXAM_SESSION_STATUSES.PUBLISHED) {
+    throw new ApiError(
+      409,
+      "Results in a published exam session are locked. Roll back publication before processing corrections.",
+    );
+  }
+
   const gradingPolicy = await GradingPolicy.findOne({
     regulationId: student.regulationId,
     subjectType: subject.subjectType,
@@ -206,6 +251,13 @@ export const processSingleResultService = async (markEntryId) => {
   });
 
   let processedResult;
+
+  if (existingProcessedResult?.isPublished) {
+    throw new ApiError(
+      409,
+      "A published result cannot be overwritten. Roll back publication before processing corrections.",
+    );
+  }
 
   if (existingProcessedResult) {
     existingProcessedResult.internalMark = markEntry.internalMark;

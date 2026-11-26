@@ -13,19 +13,19 @@ const gradeRuleSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 0,
-      max: 100
+      max: 200
     },
     max: {
       type: Number,
       required: true,
       min: 0,
-      max: 100
+      max: 200
     },
     point: {
       type: Number,
       required: true,
       min: 0,
-      max: 10
+      max: 4
     }
   },
   { _id: false }

@@ -2,12 +2,14 @@ import { Router } from "express";
 import {
   publishExamSession,
   getAllPublishSnapshots,
-  getPublishSnapshotById
+  getPublishSnapshotById,
+  rollbackPublishSnapshot
 } from "./publish.controller.js";
 import { validate } from "../../middlewares/validate.middleware.js";
 import {
   publishExamSessionSchema,
-  publishSnapshotIdParamSchema
+  publishSnapshotIdParamSchema,
+  rollbackPublishSnapshotSchema
 } from "./publish.validation.js";
 import { authMiddleware } from "../../middlewares/auth.middleware.js";
 import { roleMiddleware } from "../../middlewares/role.middleware.js";
@@ -22,6 +24,13 @@ router.post(
   validate(publishExamSessionSchema),
   roleMiddleware(ROLES.SUPER_ADMIN, ROLES.EXAM_CELL_ADMIN),
   publishExamSession
+);
+
+router.post(
+  "/snapshots/:publishSnapshotId/rollback",
+  validate(rollbackPublishSnapshotSchema),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.EXAM_CELL_ADMIN),
+  rollbackPublishSnapshot
 );
 
 router.get(

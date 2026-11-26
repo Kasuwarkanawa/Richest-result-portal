@@ -43,6 +43,26 @@ const ensureSemesterExists = async (semesterId) => {
   return semester;
 };
 
+const selectLatestAttemptPerStudentSubject = (results) => {
+  const latestByCourse = new Map();
+  const sorted = [...results].sort((a, b) => {
+    const attemptDifference = Number(b.attemptNumber || 1) - Number(a.attemptNumber || 1);
+    if (attemptDifference !== 0) return attemptDifference;
+    return new Date(b.processedAt || b.updatedAt || b.createdAt || 0) -
+      new Date(a.processedAt || a.updatedAt || a.createdAt || 0);
+  });
+
+  for (const result of sorted) {
+    const studentId = String(result.studentId?._id || result.studentId || "");
+    const subjectId = String(result.subjectId?._id || result.subjectId || "");
+    const key = studentId + "__" + subjectId;
+    if (studentId && subjectId && !latestByCourse.has(key)) {
+      latestByCourse.set(key, result);
+    }
+  }
+  return Array.from(latestByCourse.values());
+};
+
 const populateExamRegistration = (query) =>
   query
     .populate(
@@ -93,6 +113,13 @@ const validateExamRegistrationBusinessRules = async ({
     ensureSubjectExists(subjectId),
     ensureSemesterExists(sourceSemesterId),
   ]);
+
+  if (["PUBLISHED", "CLOSED"].includes(examSession.status)) {
+    throw new ApiError(
+      409,
+      "Exam registrations cannot be created or changed after the exam session is published or closed",
+    );
+  }
 
   if (!student.programId || !student.regulationId) {
     throw new ApiError(400, "Student academic mapping is incomplete");
@@ -191,7 +218,38 @@ const buildStudentFilter = ({ programId, batchId, studentSearch }) => {
 };
 
 export const createExamRegistrationService = async (payload) => {
-  await validateExamRegistrationBusinessRules(payload);
+  const latestCourseAttempt = await ProcessedResult.findOne({
+    studentId: payload.studentId,
+    subjectId: payload.subjectId,
+  }).sort({ attemptNumber: -1, processedAt: -1, createdAt: -1 });
+
+  let attemptNumber = 1;
+
+  if (payload.attemptType === ATTEMPT_TYPES.ARREAR) {
+    if (!latestCourseAttempt || latestCourseAttempt.passStatus === PASS_STATUSES.PASS) {
+      throw new ApiError(
+        400,
+        "Only a course with a previous unsuccessful result can be registered as an arrear",
+      );
+    }
+
+    if (String(latestCourseAttempt.sourceSemesterId) !== String(payload.sourceSemesterId)) {
+      throw new ApiError(
+        400,
+        "Arrear source semester must match the student's previous course attempt",
+      );
+    }
+
+    attemptNumber = Number(latestCourseAttempt.attemptNumber || 1) + 1;
+  } else if (latestCourseAttempt) {
+    throw new ApiError(
+      400,
+      "A previously attempted course must be registered through the arrear process",
+    );
+  }
+
+  const registrationPayload = { ...payload, attemptNumber };
+  await validateExamRegistrationBusinessRules(registrationPayload);
 
   const existingRegistration = await ExamRegistration.findOne({
     examSessionId: payload.examSessionId,
@@ -212,7 +270,7 @@ export const createExamRegistrationService = async (payload) => {
     subjectId: payload.subjectId,
     sourceSemesterId: payload.sourceSemesterId,
     attemptType: payload.attemptType,
-    attemptNumber: payload.attemptNumber || 1,
+    attemptNumber,
     registrationStatus: payload.registrationStatus || "REGISTERED",
     isEligible: payload.isEligible ?? true,
     remarks: payload.remarks?.trim() || "",
@@ -237,6 +295,13 @@ export const autoSyncCurrentExamRegistrationsService = async ({
   }
 
   const examSession = await ensureExamSessionExists(examSessionId);
+
+  if (["PUBLISHED", "CLOSED"].includes(examSession.status)) {
+    throw new ApiError(
+      409,
+      "Registrations cannot be synchronized after the exam session is published or closed",
+    );
+  }
 
   if (String(examSession.sessionCategory).toUpperCase() !== "REGULAR") {
     throw new ApiError(
@@ -387,14 +452,16 @@ export const getArrearCandidatesService = async ({
 
   if (studentIds.length === 0) return [];
 
-  const processedResults = await ProcessedResult.find({
+  const allPublishedResults = await ProcessedResult.find({
     studentId: { $in: studentIds },
     isPublished: true,
-    passStatus: { $ne: PASS_STATUSES.PASS },
   })
     .populate("studentId", "registerNumber fullName currentSemesterId")
     .populate("subjectId", "code name shortName subjectType credits isActive")
     .populate("sourceSemesterId", "number label displayOrder");
+
+  const processedResults = selectLatestAttemptPerStudentSubject(allPublishedResults)
+    .filter((result) => result.passStatus !== PASS_STATUSES.PASS);
 
   const existingArrearRegistrations = await ExamRegistration.find({
     examSessionId,
@@ -489,13 +556,26 @@ export const registerArrearCandidatesService = async ({
 
   for (const item of registrations) {
     try {
+      const latestCourseAttempt = await ProcessedResult.findOne({
+        studentId: item.studentId,
+        subjectId: item.subjectId,
+      }).sort({ attemptNumber: -1, processedAt: -1, createdAt: -1 });
+
+      if (!latestCourseAttempt || latestCourseAttempt.passStatus === PASS_STATUSES.PASS) {
+        throw new ApiError(400, "Only a course with a latest unsuccessful result can be registered as an arrear");
+      }
+
+      if (String(latestCourseAttempt.sourceSemesterId) !== String(item.sourceSemesterId)) {
+        throw new ApiError(400, "Arrear source semester does not match the previous course attempt");
+      }
+
       const payload = {
         examSessionId,
         studentId: item.studentId,
         subjectId: item.subjectId,
-        sourceSemesterId: item.sourceSemesterId,
+        sourceSemesterId: latestCourseAttempt.sourceSemesterId,
         attemptType: ATTEMPT_TYPES.ARREAR,
-        attemptNumber: item.attemptNumber || 2,
+        attemptNumber: Number(latestCourseAttempt.attemptNumber || 1) + 1,
         registrationStatus: "REGISTERED",
         isEligible: true,
         remarks: "",
@@ -559,6 +639,10 @@ export const updateExamRegistrationService = async (
     throw new ApiError(404, "Exam registration not found");
   }
 
+  const existingProcessedResult = await ProcessedResult.findOne({
+    examRegistrationId: examRegistration._id,
+  });
+
   const updatedValues = {
     examSessionId:
       payload.examSessionId ?? String(examRegistration.examSessionId),
@@ -567,12 +651,69 @@ export const updateExamRegistrationService = async (
     sourceSemesterId:
       payload.sourceSemesterId ?? String(examRegistration.sourceSemesterId),
     attemptType: payload.attemptType ?? examRegistration.attemptType,
-    attemptNumber: payload.attemptNumber ?? examRegistration.attemptNumber,
     registrationStatus:
       payload.registrationStatus ?? examRegistration.registrationStatus,
     isEligible: payload.isEligible ?? examRegistration.isEligible,
     remarks: payload.remarks ?? examRegistration.remarks,
   };
+
+  const academicFieldsChanged =
+    String(updatedValues.examSessionId) !== String(examRegistration.examSessionId) ||
+    String(updatedValues.studentId) !== String(examRegistration.studentId) ||
+    String(updatedValues.subjectId) !== String(examRegistration.subjectId) ||
+    String(updatedValues.sourceSemesterId) !== String(examRegistration.sourceSemesterId) ||
+    updatedValues.attemptType !== examRegistration.attemptType;
+
+  if (existingProcessedResult && academicFieldsChanged) {
+    throw new ApiError(
+      409,
+      "A registration with a processed result cannot have its academic attempt details changed",
+    );
+  }
+
+  if (existingProcessedResult && payload.isEligible !== undefined &&
+      Boolean(payload.isEligible) !== Boolean(examRegistration.isEligible)) {
+    throw new ApiError(
+      409,
+      "Eligibility cannot be changed after a result has been processed",
+    );
+  }
+
+  let attemptNumber = Number(examRegistration.attemptNumber || 1);
+
+  if (!existingProcessedResult) {
+    const latestCourseAttempt = await ProcessedResult.findOne({
+      studentId: updatedValues.studentId,
+      subjectId: updatedValues.subjectId,
+      examRegistrationId: { $ne: examRegistration._id },
+    }).sort({ attemptNumber: -1, processedAt: -1, createdAt: -1 });
+
+    if (updatedValues.attemptType === ATTEMPT_TYPES.ARREAR) {
+      if (!latestCourseAttempt || latestCourseAttempt.passStatus === PASS_STATUSES.PASS) {
+        throw new ApiError(
+          400,
+          "Only a course with a previous unsuccessful result can be registered as an arrear",
+        );
+      }
+
+      if (String(latestCourseAttempt.sourceSemesterId) !== String(updatedValues.sourceSemesterId)) {
+        throw new ApiError(
+          400,
+          "Arrear source semester must match the student's previous course attempt",
+        );
+      }
+
+      attemptNumber = Number(latestCourseAttempt.attemptNumber || 1) + 1;
+    } else {
+      if (latestCourseAttempt) {
+        throw new ApiError(
+          400,
+          "A previously attempted course must be registered through the arrear process",
+        );
+      }
+      attemptNumber = 1;
+    }
+  }
 
   await validateExamRegistrationBusinessRules(updatedValues);
 
@@ -595,7 +736,7 @@ export const updateExamRegistrationService = async (
   examRegistration.subjectId = updatedValues.subjectId;
   examRegistration.sourceSemesterId = updatedValues.sourceSemesterId;
   examRegistration.attemptType = updatedValues.attemptType;
-  examRegistration.attemptNumber = updatedValues.attemptNumber;
+  examRegistration.attemptNumber = attemptNumber;
   examRegistration.registrationStatus = updatedValues.registrationStatus;
   examRegistration.isEligible = updatedValues.isEligible;
   examRegistration.remarks = updatedValues.remarks?.trim() || "";
@@ -616,6 +757,29 @@ export const toggleExamRegistrationEligibilityService = async (
 
   if (!examRegistration) {
     throw new ApiError(404, "Exam registration not found");
+  }
+
+  const [examSession, processedResult] = await Promise.all([
+    ExamSession.findById(examRegistration.examSessionId).select("status"),
+    ProcessedResult.findOne({ examRegistrationId: examRegistration._id }).select("_id"),
+  ]);
+
+  if (!examSession) {
+    throw new ApiError(404, "Exam session not found");
+  }
+
+  if (["PUBLISHED", "CLOSED"].includes(examSession.status)) {
+    throw new ApiError(
+      409,
+      "Eligibility cannot be changed after the exam session is published or closed",
+    );
+  }
+
+  if (processedResult) {
+    throw new ApiError(
+      409,
+      "Eligibility cannot be changed after a result has been processed",
+    );
   }
 
   examRegistration.isEligible = !examRegistration.isEligible;

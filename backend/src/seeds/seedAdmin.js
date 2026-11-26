@@ -3,35 +3,43 @@ import mongoose from "mongoose";
 import { User } from "../modules/users/user.model.js";
 import { connectDB } from "../config/db.js";
 import { ROLES } from "../config/constants.js";
-import { env } from "../config/env.js";
 
 const seedAdmin = async () => {
   try {
+    const email = process.env.INITIAL_ADMIN_EMAIL?.trim().toLowerCase();
+    const password = process.env.INITIAL_ADMIN_PASSWORD;
+    const fullName = process.env.INITIAL_ADMIN_NAME?.trim();
+    const mobileNo = process.env.INITIAL_ADMIN_MOBILE?.trim();
+
+    if (!email || !password || !fullName || !mobileNo) {
+      throw new Error(
+        "Set INITIAL_ADMIN_EMAIL, INITIAL_ADMIN_PASSWORD, INITIAL_ADMIN_NAME and INITIAL_ADMIN_MOBILE before running the admin seed."
+      );
+    }
+    if (password.length < 12) {
+      throw new Error("INITIAL_ADMIN_PASSWORD must contain at least 12 characters.");
+    }
+
     await connectDB();
 
-    const existingAdmin = await User.findOne({ email: "admin@kavery.edu.in" });
-
+    const existingAdmin = await User.findOne({ email });
     if (existingAdmin) {
-      console.log("Super admin already exists");
+      console.log("Configured super admin already exists; no changes made.");
       await mongoose.connection.close();
       process.exit(0);
     }
 
-    const passwordHash = await bcrypt.hash("Admin@123", 10);
-
+    const passwordHash = await bcrypt.hash(password, 12);
     await User.create({
-      fullName: "Super Admin",
-      email: "admin@kavery.edu.in",
-      mobileNo: "9999999999",
+      fullName,
+      email,
+      mobileNo,
       passwordHash,
       role: ROLES.SUPER_ADMIN,
       isActive: true
     });
 
-    console.log("Super admin created successfully");
-    console.log("Email: admin@kavery.edu.in");
-    console.log("Password: Admin@123");
-
+    console.log("Super admin created. Credentials were read from environment variables.");
     await mongoose.connection.close();
     process.exit(0);
   } catch (error) {

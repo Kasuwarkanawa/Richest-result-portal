@@ -7,7 +7,7 @@ import {
 } from "./publicResult.service.js";
 import { buildPublishedResultPdf } from "./publicResult.pdf.js";
 
-const COLLEGE_NAME = "The Kavery Engineering College (Autonomous), Mecheri";
+const COLLEGE_NAME = "HAJIYA RAKIYA GERAWA COLLEGE OF HEALTH SCIENCE AND TECHNOLOGY KANO (RIGCHEST)";
 
 export const searchPublishedResult = asyncHandler(async (req, res) => {
   const result = await searchPublishedResultService(req.body);
@@ -18,10 +18,7 @@ export const searchPublishedResult = asyncHandler(async (req, res) => {
 });
 
 export const getPublishedResultHistory = asyncHandler(async (req, res) => {
-  const result = await getPublishedResultHistoryService({
-    registerNumber: req.params.registerNumber,
-    dob: req.query.dob
-  });
+  const result = await getPublishedResultHistoryService(req.body);
 
   return res.status(200).json(
     new ApiResponse(200, "Published result history fetched successfully", result)

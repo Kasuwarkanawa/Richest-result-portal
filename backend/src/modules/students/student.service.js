@@ -7,6 +7,7 @@ import { Batch } from "../batches/batch.model.js";
 import { Semester } from "../semesters/semester.model.js";
 import { ApiError } from "../../utils/apiError.js";
 import { ACADEMIC_STATUSES } from "../../config/constants.js";
+import { generateStudentPin, hashStudentPin } from "./studentPin.js";
 
 const ensureValidObjectId = (id, label) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -88,11 +89,14 @@ export const createStudentService = async (payload) => {
 
   await validateStudentLinks(payload);
 
+  const studentPin = generateStudentPin();
   const student = await Student.create({
     registerNumber: payload.registerNumber.toUpperCase(),
     universityRegisterNo: payload.universityRegisterNo?.trim() || "",
     fullName: payload.fullName.trim(),
     dob: new Date(payload.dob),
+    studentPinHash: await hashStudentPin(studentPin),
+    studentPinGeneratedAt: new Date(),
     gender: payload.gender?.trim()?.toUpperCase() || "",
     mobileNo: payload.mobileNo?.trim() || "",
     email: payload.email?.trim()?.toLowerCase() || "",
@@ -105,7 +109,7 @@ export const createStudentService = async (payload) => {
     admissionYear: payload.admissionYear
   });
 
-  return populateStudent(Student.findById(student._id));
+  return { student: await populateStudent(Student.findById(student._id)), studentPin };
 };
 
 export const getAllStudentsService = async () => {
@@ -203,4 +207,15 @@ export const toggleStudentAcademicStatusService = async (studentId) => {
   await student.save();
 
   return populateStudent(Student.findById(student._id));
+};
+
+export const regenerateStudentPinService = async (studentId) => {
+  ensureValidObjectId(studentId, "student");
+  const student = await Student.findById(studentId);
+  if (!student) throw new ApiError(404, "Student not found");
+  const studentPin = generateStudentPin();
+  student.studentPinHash = await hashStudentPin(studentPin);
+  student.studentPinGeneratedAt = new Date();
+  await student.save();
+  return { student: await populateStudent(Student.findById(student._id)), studentPin };
 };

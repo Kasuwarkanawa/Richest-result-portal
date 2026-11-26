@@ -11,7 +11,7 @@ export default function ResultSearchPage() {
 
   const [form, setForm] = useState({
     registerNumber: "",
-    dob: ""
+    studentPin: ""
   });
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -27,42 +27,15 @@ export default function ResultSearchPage() {
     setInfoMessage("");
   };
 
-  const convertDobToIso = () => {
-    const dob = form.dob.trim();
-
-    if (!dob) return "";
-
-    const parts = dob.split("-");
-    if (parts.length !== 3) return "";
-
-    const [day, month, year] = parts;
-
-    if (!day || !month || !year) return "";
-    if (day.length !== 2 || month.length !== 2 || year.length !== 4) return "";
-
-    return `${year}-${month}-${day}T00:00:00.000Z`;
-  };
-
   const validateForm = () => {
-    if (!form.registerNumber.trim()) {
-      return "Register Number is required";
-    }
-
-    if (!form.dob.trim()) {
-      return "Date of Birth is required";
-    }
-
-    const dobPattern = /^\d{2}-\d{2}-\d{4}$/;
-    if (!dobPattern.test(form.dob.trim())) {
-      return "Date of Birth must be in dd-mm-yyyy format";
-    }
-
+    if (!form.registerNumber.trim()) return "Register Number is required";
+    if (!/^\d{10}$/.test(form.studentPin.trim())) return "Enter your 10-digit Student PIN";
     return "";
   };
 
   const buildPayload = () => ({
     registerNumber: form.registerNumber.trim().toUpperCase(),
-    dob: convertDobToIso()
+    studentPin: form.studentPin.trim()
   });
 
   const handleSearch = async () => {
@@ -80,16 +53,13 @@ export default function ResultSearchPage() {
 
       const payload = buildPayload();
 
-      sessionStorage.setItem("last_result_search_payload", JSON.stringify(payload));
-
       const response = await searchPublishedResultApi(payload);
 
-      sessionStorage.setItem(
-        "latest_published_result",
-        JSON.stringify(response.data)
-      );
-
-      navigate("/results/view");
+      // Keep result data and PIN in transient router state only. Do not persist
+      // student academic records or access credentials in browser storage.
+      navigate("/results/view", {
+        state: { studentPin: payload.studentPin, resultData: response.data }
+      });
     } catch (err) {
       const message =
         err?.response?.data?.message || "Failed to fetch latest result";
@@ -129,19 +99,13 @@ export default function ResultSearchPage() {
 
       const payload = buildPayload();
 
-      sessionStorage.setItem("last_result_search_payload", JSON.stringify(payload));
-
       const response = await getPublishedResultHistoryApi({
         registerNumber: payload.registerNumber,
-        dob: payload.dob
+        studentPin: payload.studentPin
       });
 
-      sessionStorage.setItem(
-        "published_result_history",
-        JSON.stringify(response.data)
-      );
-
-      navigate("/results/history");
+      // History and credentials stay in transient navigation state only.
+      navigate("/results/history", { state: { historyData: response.data } });
     } catch (err) {
       const message =
         err?.response?.data?.message || "Failed to fetch result history";
@@ -180,7 +144,7 @@ export default function ResultSearchPage() {
                 Search Published Result
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-[#6B7A8C]">
-                Enter your Register Number and Date of Birth to view the latest
+                Enter your Register Number and Student PIN to view the latest
                 published result or check your semester-wise published result history.
               </p>
 
@@ -201,15 +165,17 @@ export default function ResultSearchPage() {
 
                 <div>
                   <label className="mb-2 block text-sm font-medium text-[#243447]">
-                    Date of Birth
+                    Student PIN
                   </label>
                   <input
                     type="text"
-                    name="dob"
-                    value={form.dob}
+                    name="studentPin"
+                    value={form.studentPin}
                     onChange={handleChange}
-                    placeholder="dd-mm-yyyy"
+                    placeholder="10-digit Student PIN"
                     inputMode="numeric"
+                    maxLength={10}
+                    autoComplete="off"
                     className="w-full rounded-2xl border border-[#E6ECF2] px-4 py-3 text-[#243447] outline-none transition placeholder:text-[#A3AFBF] focus:border-[#7C9CCF] focus:ring-4 focus:ring-[#7C9CCF]/10"
                   />
                 </div>
@@ -260,7 +226,7 @@ export default function ResultSearchPage() {
 
                 <div className="rounded-2xl bg-white p-4 shadow-sm">
                   Use the exact <span className="font-semibold text-[#243447]">Register Number</span> and
-                  <span className="font-semibold text-[#243447]"> Date of Birth</span> as per college records.
+                  your <span className="font-semibold text-[#243447]">10-digit Student PIN</span> issued by the College.
                 </div>
 
                 <div className="rounded-2xl bg-white p-4 shadow-sm">
@@ -295,7 +261,7 @@ export default function ResultSearchPage() {
         </section>
 
         <footer className="rounded-[28px] border border-[#E6ECF2] bg-white px-6 py-5 text-center text-sm text-[#6B7A8C] shadow-sm">
-          © {new Date().getFullYear()} The Kavery Engineering College (Autonomous), Mecheri. Student Result Portal.
+          © {new Date().getFullYear()} HAJIYA RAKIYA GERAWA COLLEGE OF HEALTH SCIENCE AND TECHNOLOGY KANO (RIGCHEST). Student Result Portal.
         </footer>
       </div>
     </PublicLayout>

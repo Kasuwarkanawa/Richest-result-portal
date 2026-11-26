@@ -9,7 +9,8 @@ import { getSemestersApi } from "../../api/semesters.api";
 import {
   getStudentsApi,
   createStudentApi,
-  updateStudentApi
+  updateStudentApi,
+  regenerateStudentPinApi
 } from "../../api/students.api";
 
 const GENDERS = ["MALE", "FEMALE", "OTHER"];
@@ -188,6 +189,7 @@ export default function StudentsPage() {
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [pinNotice, setPinNotice] = useState(null);
 
   const loadData = async () => {
     try {
@@ -412,16 +414,34 @@ export default function StudentsPage() {
 
       if (editingStudent?._id) {
         await updateStudentApi(editingStudent._id, payload);
+        await loadData();
+        setModalOpen(false);
+        setEditingStudent(null);
+        setForm(emptyForm);
+        setFormError("");
       } else {
-        await createStudentApi(payload);
+        const response = await createStudentApi(payload);
+        setPinNotice({ studentName: response?.data?.student?.fullName || payload.fullName, registerNumber: response?.data?.student?.registerNumber || payload.registerNumber, pin: response?.data?.studentPin });
+        await loadData();
+        setModalOpen(false);
+        setEditingStudent(null);
+        setForm(emptyForm);
+        setFormError("");
       }
-
-      await loadData();
-      closeModal();
     } catch (err) {
       setFormError(extractErrorMessage(err));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRegeneratePin = async (student) => {
+    if (!window.confirm("Generate a new Student PIN for " + resolveFullName(student) + "? The old PIN will stop working.")) return;
+    try {
+      const response = await regenerateStudentPinApi(student._id);
+      setPinNotice({ studentName: resolveFullName(student), registerNumber: resolveRegisterNumber(student), pin: response?.data?.studentPin });
+    } catch (err) {
+      setPageError(extractErrorMessage(err));
     }
   };
 
@@ -439,6 +459,19 @@ export default function StudentsPage() {
           </button>
         }
       />
+
+      {pinNotice?.pin ? (
+        <div className="rounded-2xl border border-[#DCE7F7] bg-[#F4F8FC] p-5 text-[#243447]">
+          <div className="font-semibold">Student PIN generated</div>
+          <p className="mt-1 text-sm">{pinNotice.studentName} · {pinNotice.registerNumber}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <code className="rounded-lg bg-white px-4 py-2 text-xl font-bold tracking-widest">{pinNotice.pin}</code>
+            <button type="button" onClick={() => navigator.clipboard?.writeText(pinNotice.pin)} className="rounded-xl border border-[#C8D7EA] bg-white px-3 py-2 text-sm">Copy PIN</button>
+            <button type="button" onClick={() => setPinNotice(null)} className="rounded-xl border border-[#C8D7EA] bg-white px-3 py-2 text-sm">Dismiss</button>
+          </div>
+          <p className="mt-2 text-xs text-[#6B7A8C]">Save or share this PIN securely. It will not be displayed again.</p>
+        </div>
+      ) : null}
 
       <SectionCard
         title="Student Directory"
@@ -557,12 +590,10 @@ export default function StudentsPage() {
                         />
                       </td>
                       <td className="px-4 py-4">
-                        <button
-                          onClick={() => openEditModal(student)}
-                          className="rounded-xl border border-[#E6ECF2] px-3 py-2 text-sm font-medium text-[#4A6A94] hover:bg-[#F8FAFC]"
-                        >
-                          Edit
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <button onClick={() => openEditModal(student)} className="rounded-xl border border-[#E6ECF2] px-3 py-2 text-sm font-medium text-[#4A6A94] hover:bg-[#F8FAFC]">Edit</button>
+                          <button onClick={() => handleRegeneratePin(student)} className="rounded-xl border border-[#E6ECF2] px-3 py-2 text-sm font-medium text-[#8A5B2B] hover:bg-[#FFF9F1]">Reset PIN</button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -604,12 +635,10 @@ export default function StudentsPage() {
                     <p><span className="font-medium">Semester:</span> {resolveSemesterLabel(student, semesterMap)}</p>
                   </div>
 
-                  <button
-                    onClick={() => openEditModal(student)}
-                    className="mt-4 rounded-xl border border-[#E6ECF2] px-3 py-2 text-sm font-medium text-[#4A6A94] hover:bg-white"
-                  >
-                    Edit
-                  </button>
+                  <div className="mt-4 flex gap-2">
+                    <button onClick={() => openEditModal(student)} className="rounded-xl border border-[#E6ECF2] px-3 py-2 text-sm font-medium text-[#4A6A94] hover:bg-white">Edit</button>
+                    <button onClick={() => handleRegeneratePin(student)} className="rounded-xl border border-[#E6ECF2] px-3 py-2 text-sm font-medium text-[#8A5B2B] hover:bg-white">Reset PIN</button>
+                  </div>
                 </div>
               ))}
             </div>

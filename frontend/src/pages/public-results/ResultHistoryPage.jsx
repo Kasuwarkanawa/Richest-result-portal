@@ -1,5 +1,4 @@
-import { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import PublicLayout from "../../layouts/PublicLayout";
 
 const HistoryMetricCard = ({ label, value }) => (
@@ -12,10 +11,8 @@ const HistoryMetricCard = ({ label, value }) => (
 export default function ResultHistoryPage() {
   const navigate = useNavigate();
 
-  const historyData = useMemo(() => {
-    const raw = sessionStorage.getItem("published_result_history");
-    return raw ? JSON.parse(raw) : null;
-  }, []);
+  const location = useLocation();
+  const historyData = location.state?.historyData || null;
 
   if (!historyData) {
     return (

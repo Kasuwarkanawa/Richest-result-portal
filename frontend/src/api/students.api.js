@@ -14,3 +14,7 @@ export const updateStudentApi = async (studentId, payload) => {
   const response = await api.put(`/students/${studentId}`, payload);
   return response.data;
 };
+export const regenerateStudentPinApi = async (studentId) => {
+  const response = await api.post(`/students/${studentId}/regenerate-pin`);
+  return response.data;
+};

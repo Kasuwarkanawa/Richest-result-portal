@@ -1,6 +1,6 @@
-# College Result Portal
+# RIGCHEST Student Result Portal
 
-A full-stack web application for managing and publishing semester examination results for The Kavery Engineering College (Autonomous), Mecheri.
+A full-stack web application for managing academic records, examinations, marks, GPA/CGPA, result approval, and publication for **HAJIYA RAKIYA GERAWA COLLEGE OF HEALTH SCIENCE AND TECHNOLOGY KANO (RIGCHEST)**.
 
 ## Overview
 
@@ -46,8 +46,10 @@ The system provides separate functionality for administrators and students. Admi
 
 ### Student Result Portal
 
-* No student login required
-* Register number and date of birth based result search
+* No student account login required
+* Register number and admin-issued 10-digit Student PIN based result search
+* Student PINs are generated on individual creation and Excel import
+* Student PINs are stored as bcrypt hashes and can be reset by authorized administrators
 * Published semester result viewing
 * Subject-wise grade display
 * GPA display
@@ -340,19 +342,7 @@ The system also considers special examination conditions such as:
 
 The grading policy is configurable according to the academic regulation.
 
-A typical 10-point grading system can be configured with:
-
-| Grade | Grade Point |
-| ----- | ----------- |
-| O     | 10          |
-| A+    | 9           |
-| A     | 8           |
-| B+    | 7           |
-| B     | 6           |
-| C     | 5           |
-| U     | 0           |
-
-The actual grade ranges are controlled through the grading policy configuration in the system.
+The RIGCHEST implementation uses a **4.0 maximum grade-point scale**. Grade labels, mark ranges (up to 200 total marks), and grade points are configurable by an authorized administrator. Enter only the grade boundaries formally approved by the College; this repository intentionally does not assume or prefill an unapproved grading table.
 
 ## GPA and CGPA
 
@@ -394,12 +384,14 @@ The system also maintains publish snapshots to track different publication versi
 
 ## Student Result Portal
 
-Students can access the result portal without creating an account.
+Students can access the result portal without creating a student account.
 
 The student provides:
 
 * Register Number
-* Date of Birth
+* Admin-issued 10-digit Student PIN
+
+Administrators can regenerate a PIN for an existing student. The raw PIN is shown only once when generated or during the immediate bulk-import result; only its bcrypt hash is stored in MongoDB.
 
 The system validates the submitted information and returns only published results.
 
@@ -653,9 +645,7 @@ Run the admin seed command from the backend directory.
 npm run seed:admin
 ```
 
-The application contains one initial administrator account.
-
-For security reasons, administrator credentials should not be stored in the public repository README.
+Create the initial administrator using environment variables before running the seed command. Set `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` (at least 12 characters), `INITIAL_ADMIN_NAME`, and `INITIAL_ADMIN_MOBILE`. The seed script does not contain a default username or password. Keep these values private and never commit them to Git.
 
 ### Start Backend
 
@@ -688,6 +678,10 @@ JWT_REFRESH_SECRET=
 JWT_ACCESS_EXPIRES_IN=
 JWT_REFRESH_EXPIRES_IN=
 FRONTEND_URL=
+INITIAL_ADMIN_EMAIL=
+INITIAL_ADMIN_PASSWORD=
+INITIAL_ADMIN_NAME=
+INITIAL_ADMIN_MOBILE=
 ```
 
 ### Frontend
@@ -700,49 +694,13 @@ Never commit `.env` files or production secrets to GitHub.
 
 ## Deployment
 
-The application is deployed using:
+Suggested production architecture:
 
-- Frontend: Vercel
-- Backend: Render
-- Database: MongoDB
+- Frontend: Vercel or another static hosting provider
+- Backend: Render or another Node.js hosting provider
+- Database: MongoDB Atlas
 
-## Live Demo
-
-[College Result Portal](https://college-result-portal-bay.vercel.app/)
-
-## Screenshots
-
-### Landing Home Page
-
-![Landing Home Page](docs/screenshots/Landing%20Home%20Page.jpeg)
-
-### Admin Login
-
-![Admin Login](docs/screenshots/Admin%20Login.jpeg)
-
-### Admin Dashboard
-
-![Admin Dashboard](docs/screenshots/Admin%20Dashboard.jpeg)
-
-### Student Management
-
-![Student Management](docs/screenshots/Student%20Management.jpeg)
-
-### Mark Entry
-
-![Mark Entry](docs/screenshots/Mark%20Entry.jpeg)
-
-### Result Processing
-
-![Result Processing](docs/screenshots/Result%20Processing.jpeg)
-
-### Student Result Search
-
-![Student Result Search](docs/screenshots/Student%20Result%20Search.jpeg)
-
-### Student Result View
-
-![Student Result View](docs/screenshots/Student%20Result%20View.jpeg)
+**Deployment status:** This RIGCHEST repository has not yet been configured or verified as a live production deployment. Set production environment variables, provision MongoDB, deploy both services, and run the database migration only after taking a verified backup.
 
 ## Testing
 
@@ -764,14 +722,12 @@ Recommended testing flow:
 12. Search for the result through the public portal
 13. Download the grade sheet PDF
 
-## Current Limitations
+## Verification and Production Readiness
 
-* Automated unit testing is not currently implemented.
-* Automated end-to-end testing is not currently implemented.
-* The system currently uses a single administrator account.
-* Student authentication is not implemented because the public result portal uses register number and date of birth verification.
-* Refresh token renewal functionality may require further enhancement.
-* Additional production-level monitoring and logging can be added in future versions.
+* GitHub Actions runs backend automated tests and a frontend production build on pull requests.
+* The current CI run for the RIGCHEST changes completed successfully; this is not a substitute for end-to-end testing with a real MongoDB deployment.
+* Public result lookup requires a register number and an admin-issued 10-digit Student PIN. PINs are stored as bcrypt hashes; older student records must have a PIN issued by an administrator before public lookup can succeed.
+* Production monitoring, backups, deployment secrets, and a full end-to-end acceptance test remain deployment tasks.
 
 ## Future Enhancements
 
@@ -783,7 +739,7 @@ Possible future improvements include:
 * SMS notifications
 * Advanced analytics dashboard
 * Result comparison and performance analytics
-* Automated testing
+* Automated end-to-end testing
 * Audit log management
 * Advanced search and filtering
 * Pagination for large datasets
@@ -810,13 +766,9 @@ This project was developed as a full-stack software project to demonstrate the p
 * PDF generation
 * Cloud deployment
 
-## Author
+## Institution
 
-Meganathan K
-
-Computer Science and Engineering
-
-The Kavery Engineering College (Autonomous), Mecheri, Salem
+HAJIYA RAKIYA GERAWA COLLEGE OF HEALTH SCIENCE AND TECHNOLOGY KANO (RIGCHEST)
 
 ## License
 

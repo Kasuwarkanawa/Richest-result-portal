@@ -16,3 +16,13 @@ export const publishSnapshotIdParamSchema = z.object({
   }),
   query: z.object({}).optional()
 });
+
+export const rollbackPublishSnapshotSchema = z.object({
+  body: z.object({
+    reason: z.string().trim().min(10, "Provide a rollback reason of at least 10 characters").max(1000)
+  }),
+  params: z.object({
+    publishSnapshotId: z.string().trim().min(1, "Publish snapshot ID is required")
+  }),
+  query: z.object({}).optional()
+});
