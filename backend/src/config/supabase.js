@@ -1,32 +1,57 @@
-import { createClient } from "@supabase/supabase-js";
 import { env } from "./env.js";
 
-let supabaseAdmin;
-
-/**
- * Create the privileged Supabase client lazily. This module must only be
- * imported by backend/server code. Never expose this client or its key to
- * browser bundles or return the key in API responses.
- */
-export const getSupabaseAdmin = () => {
+const getConfig = () => {
   if (!env.supabaseUrl || !env.supabaseServiceRoleKey) {
     throw new Error(
       "Supabase is not configured: set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY"
     );
   }
+  return {
+    baseUrl: env.supabaseUrl.replace(/\\/$/, ""),
+    key: env.supabaseServiceRoleKey
+  };
+};
 
-  if (!supabaseAdmin) {
-    supabaseAdmin = createClient(env.supabaseUrl, env.supabaseServiceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-        detectSessionInUrl: false
-      },
-      global: {
-        headers: { "X-Client-Info": "rigchest-result-portal-backend" }
-      }
-    });
+/** Server-only PostgREST request helper. Never import from frontend code. */
+export const supabaseRequest = async (table, {
+  method = "GET",
+  query = "",
+  body,
+  prefer,
+  headers = {}
+} = {}) => {
+  const { baseUrl, key } = getConfig();
+  const suffix = query ? (query.startsWith("?") ? query : `?${query}`) : "";
+  const response = await fetch(`${baseUrl}/rest/v1/${encodeURIComponent(table)}${suffix}`, {
+    method,
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      Accept: "application/json",
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...(prefer ? { Prefer: prefer } : {}),
+      ...headers
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) })
+  });
+
+  const responseText = await response.text();
+  let data = null;
+  if (responseText) {
+    try { data = JSON.parse(responseText); }
+    catch { data = responseText; }
   }
 
-  return supabaseAdmin;
+  if (!response.ok) {
+    const error = new Error(data?.message || data?.hint || `Supabase request failed (${response.status})`);
+    error.status = response.status;
+    error.details = data;
+    throw error;
+  }
+  return data;
+};
+
+export const supabaseHealthCheck = async () => {
+  const rows = await supabaseRequest("semesters", { query: "select=id&limit=1" });
+  return { ok: true, checked: "public.semesters", sampleRows: rows.length };
 };
