@@ -115,4 +115,6 @@ test("public user projection never exposes password hashes", () => {
   assert.equal(safe._id, USER_ID);
   assert.deepEqual(safe.departmentIds, ["dept-uuid"]);
   assert.equal(Object.hasOwn(safe, "passwordHash"), false);
+  const safeFromRawRow = toPublicSupabaseUser({ ...makeUserRow(), id: USER_ID });
+  assert.equal(Object.hasOwn(safeFromRawRow, "password_hash"), false);
 });
