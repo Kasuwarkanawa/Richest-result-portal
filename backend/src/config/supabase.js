@@ -7,7 +7,8 @@ const getConfig = () => {
     );
   }
   return {
-    baseUrl: env.supabaseUrl.replace(/\\/$/, ""),
+    // Remove trailing URL slashes without introducing an invalid regex.
+    baseUrl: env.supabaseUrl.replace(/\/+$/, ""),
     key: env.supabaseServiceRoleKey
   };
 };
