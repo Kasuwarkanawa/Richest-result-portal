@@ -3,6 +3,8 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+const supabaseUrl = process.env.SUPABASE_URL || process.env.SUPABASE_PROJECT_URL || "";
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
 const requiredEnvVars = [
   "JWT_ACCESS_SECRET",
@@ -24,6 +26,8 @@ export const env = {
   port: Number(process.env.PORT) || 5000,
   nodeEnv: process.env.NODE_ENV || "production",
   mongoUri,
+  supabaseUrl,
+  supabaseServiceRoleKey,
   jwtAccessSecret: process.env.JWT_ACCESS_SECRET,
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET,
   jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "15m",
