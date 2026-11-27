@@ -14,6 +14,9 @@ import { errorMiddleware } from "./middlewares/error.middleware.js";
 
 const app = express();
 
+// Vercel runs Express behind one trusted proxy; this enables correct client IP handling.
+app.set("trust proxy", 1);
+
 app.use(
   cors({
     origin: (origin, callback) => {
