@@ -25,7 +25,9 @@ import { ApiError } from "../../utils/apiError.js";
 
 const router = Router();
 
-const uploadDir = "uploads/student-imports";
+const uploadDir = process.env.VERCEL === "1"
+  ? path.join("/tmp", "student-imports")
+  : path.resolve("uploads/student-imports");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
