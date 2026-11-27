@@ -31,14 +31,15 @@ The following tables were verified in `public`:
 
 ## Backend migration sequence
 1. Introduce a server-only Supabase/PostgreSQL adapter and validate required environment variables without removing MongoDB support.
-2. Port authentication and user/department access first. Preserve bcrypt, JWT claims, role names, response shapes, and inactive-user behavior.
-3. Port reference data modules (departments, programs, regulations, batches, semesters, subjects, curriculum mappings).
-4. Port student CRUD, Excel import, student PIN generation/verification, and department scoping.
-5. Port exam sessions, registrations, mark entry, verification, locking, and audit/version behavior.
-6. Port result processing, grading, GPA/CGPA, arrears, summaries, publication snapshots, rollback, public result lookup, and PDF output.
-7. Add parity tests against representative MongoDB fixtures and PostgreSQL fixtures.
-8. Configure a separate preview API deployment using Supabase credentials; test all workflows before production cutover.
-9. Keep MongoDB available until the user explicitly approves cutover and rollback window has passed.
+2. Complete a read-only dependency inventory for every Mongoose model/service and every route that consumes `req.user`. Keep MongoDB as the active identity provider during this stage.
+3. Design and test a deterministic, auditable Mongo ObjectId-to-PostgreSQL UUID mapping for users and every referenced entity. The current schema has no dedicated legacy-ID mapping ledger; do not begin bulk identity import until this gap is explicitly designed and reviewed. Never cast or reinterpret a Mongo ObjectId as a UUID.
+4. Port reference data modules (departments, programs, regulations, batches, semesters, subjects, curriculum mappings) and establish verified ID mappings before dependent records are imported.
+5. Port user/department persistence and bcrypt-compatible password verification behind an isolated repository. Preserve roles, JWT claims, response shapes, department scoping, and inactive-user behavior. **Do not switch login or issue UUID-based user tokens yet** while any active Mongoose service still expects Mongo ObjectIds.
+6. Port all actor-dependent consumers and audit writes to resolve the same canonical user identity. Verified PostgreSQL user foreign keys include `exam_sessions.result_published_by`, `mark_entries.entered_by/verified_by/locked_by`, `publish_snapshots.published_by/rolled_back_by`, and `user_departments.user_id`. The current Mongo mark-entry and publication services validate actors with `User.findById`; these checks and all writes must be migrated together with their related modules.
+7. Port student CRUD, Excel import, student PIN generation/verification, exam sessions, registrations, marks, result processing, grading, GPA/CGPA, arrears, summaries, publication snapshots, rollback, public result lookup, and PDF output. Preserve snapshot history and all audit actor references.
+8. Add migration-ledger reconciliation, row-count and relationship audits, auth compatibility tests, role/department authorization tests, and end-to-end parity tests against representative MongoDB and PostgreSQL fixtures.
+9. Configure a separate Preview API deployment using Supabase credentials. Test login, refresh, `/me`, department-scoped operations, mark entry/verification/locking, publication, rollback, public result lookup, and printing before any production change.
+10. Keep MongoDB available as production/rollback until the user explicitly approves cutover and the rollback window has passed.
 
 ## Security and release gates
 - Do not expose the service-role key or database password in Vite/frontend variables.
