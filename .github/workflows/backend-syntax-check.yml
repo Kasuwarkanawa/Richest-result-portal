@@ -1,0 +1,25 @@
+name: Backend syntax check
+
+on:
+  push:
+    branches:
+      - migration/supabase-postgres
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check every backend JavaScript file
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            echo "Checking $file"
+            node --check "$file"
+          done < <(find backend -type f -name '*.js' -print0)
