@@ -35,7 +35,7 @@ const mapUserRow = (row) => ({
 
 export const toPublicSupabaseUser = (user, departmentIds = []) => {
   if (!user) return null;
-  const { passwordHash: _passwordHash, ...safeUser } = user;
+  const { passwordHash: _passwordHash, password_hash: _passwordHashSnakeCase, ...safeUser } = user;
   return {
     _id: safeUser.id,
     fullName: safeUser.fullName,
