@@ -121,3 +121,21 @@ The original service is backend/src/modules/publish/publish.service.js. These ar
 - Route authorization: publish and rollback require SUPER_ADMIN or EXAM_CELL_ADMIN. Snapshot list/detail also allow DEPARTMENT_ADMIN and VERIFIER.
 
 Implementation must preserve these behaviors unless a separately approved product change says otherwise.
+
+
+## 9. Source-to-target index and status parity
+
+The Mongo snapshot model defines a non-unique index on status. The Mongo snapshot-record model defines non-unique indexes on (snapshotId, studentId, recordType, subjectId) and (studentId, recordType, createdAt descending).
+
+The inspected Supabase schema has the student/type/created-at index, plus snapshot_id, exam_session_id, and subject_id indexes, but does not currently have the Mongo composite lookup index or the snapshot status index. These are parity/performance gaps to evaluate before release; no index has been added.
+
+The exact snapshot status enum is ACTIVE, ROLLED_BACK, SUPERSEDED. The source exam-session statuses include DRAFT, OPEN, VERIFIED, APPROVED, PUBLISHED, CLOSED. The Supabase schema currently has no inspected CHECK constraint for the snapshot status column, so the RPC must enforce allowed values until a reviewed database constraint is approved.
+
+## 10. Proposed RPC adapter contract
+
+The isolated backend adapter added on this branch expects two server-only RPC functions, neither of which currently exists in the Supabase project:
+
+- publish_exam_session_snapshot(p_exam_session_id uuid, p_actor_user_id uuid, p_notes text) returns an object containing snapshot_id uuid.
+- rollback_publish_snapshot(p_snapshot_id uuid, p_actor_user_id uuid, p_reason text) returns an object containing snapshot_id uuid.
+
+Both functions must implement the exact source rules documented in section 8 and commit all related writes atomically. The adapter performs a follow-up header read after the RPC commits, matching the source API's populated header response. Until reviewed SQL functions are approved and installed, publication writes remain unavailable through this isolated adapter.
