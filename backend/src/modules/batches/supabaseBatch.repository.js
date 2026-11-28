@@ -20,9 +20,6 @@ const normalizeYear = (value, field) => {
 
 const validateYearRange = (startYear, endYear) => {
   if (startYear >= endYear) throw new TypeError("End year must be greater than start year");
-  if (endYear - startYear !== 4) {
-    throw new TypeError("Engineering batch must have a 4-year gap (example: 2023-2027)");
-  }
 };
 
 const normalizeBoolean = (value, field) => {
