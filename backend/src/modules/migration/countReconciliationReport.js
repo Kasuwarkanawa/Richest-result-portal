@@ -47,6 +47,13 @@ export const buildCountReconciliationReport = (auditResults) => {
   const mismatched = entries.filter(({ matches }) => !matches);
   const sourceTotal = entries.reduce((sum, { sourceCount }) => sum + sourceCount, 0);
   const targetTotal = entries.reduce((sum, { targetCount }) => sum + targetCount, 0);
+  if (!Number.isSafeInteger(sourceTotal) || !Number.isSafeInteger(targetTotal)) {
+    throw new RangeError("Aggregate source and target totals must remain safe integers");
+  }
+  const totalDifference = targetTotal - sourceTotal;
+  if (!Number.isSafeInteger(totalDifference)) {
+    throw new RangeError("Aggregate count difference must remain a safe integer");
+  }
 
   return Object.freeze({
     entityCount: entries.length,
@@ -54,7 +61,7 @@ export const buildCountReconciliationReport = (auditResults) => {
     mismatchedEntityCount: mismatched.length,
     sourceTotal,
     targetTotal,
-    totalDifference: targetTotal - sourceTotal,
+    totalDifference,
     allMatched: mismatched.length === 0,
     matched: Object.freeze(matched),
     mismatched: Object.freeze(mismatched)

@@ -57,6 +57,12 @@ test("rejects unsafe counts and inconsistent match flags", () => {
   assert.throws(() => buildCountReconciliationReport(inconsistent), /inconsistent/);
 });
 
+test("rejects aggregate totals that exceed JavaScript safe integer precision", () => {
+  const results = completeResults();
+  results[0] = { ...results[0], sourceCount: Number.MAX_SAFE_INTEGER, targetCount: Number.MAX_SAFE_INTEGER, matches: true };
+  assert.throws(() => buildCountReconciliationReport(results), /Aggregate source and target totals/);
+});
+
 test("report exposes only entity names and aggregate counts, never source records", () => {
   const report = buildCountReconciliationReport(completeResults());
   const serialized = JSON.stringify(report);
