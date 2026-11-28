@@ -10,13 +10,20 @@ export const parsePostgrestExactCount = (contentRange) => {
   if (typeof contentRange !== "string") {
     throw new TypeError("PostgREST response is missing Content-Range metadata");
   }
-  const match = contentRange.trim().match(/^(?:\d+-\d+|\*)\/(\d+|\*)$/);
-  if (!match || match[1] === "*") {
+  const match = contentRange.trim().match(/^(?:(\\d+)-(\\d+)|\\*)\\/(\\d+|\\*)$/);
+  if (!match || match[3] === "*") {
     throw new TypeError("PostgREST did not return an exact total count");
   }
-  const count = Number(match[1]);
+  const count = Number(match[3]);
   if (!Number.isSafeInteger(count) || count < 0) {
     throw new TypeError("PostgREST exact count must be a non-negative safe integer");
+  }
+  if (match[1] !== undefined) {
+    const start = Number(match[1]);
+    const end = Number(match[2]);
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || end >= count) {
+      throw new TypeError("PostgREST Content-Range bounds are inconsistent with the exact total");
+    }
   }
   return count;
 };
