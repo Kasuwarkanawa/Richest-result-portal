@@ -3,6 +3,8 @@ import jwt from "jsonwebtoken";
 import { ApiError } from "../../utils/apiError.js";
 import { toPublicSupabaseUser } from "../users/supabaseUser.repository.js";
 
+const POSTGRES_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Isolated PostgreSQL-backed authentication service.
  * It deliberately is not wired into auth.routes.js or the production composition
@@ -57,6 +59,10 @@ export const createSupabaseAuthService = ({
     },
 
     getMe: async (userId) => {
+      // Reject pre-cutover Mongo ObjectId JWTs explicitly; do not cast them to UUIDs.
+      if (typeof userId !== "string" || !POSTGRES_UUID_PATTERN.test(userId)) {
+        throw new ApiError(401, "Unauthorized access");
+      }
       const user = await userRepository.findUserById(userId);
       if (!user) throw new ApiError(404, "User not found");
       const departmentIds = await userRepository.listDepartmentIdsForUser(user.id);
