@@ -60,7 +60,12 @@ test("rejects unsafe counts and inconsistent match flags", () => {
 test("report exposes only entity names and aggregate counts, never source records", () => {
   const report = buildCountReconciliationReport(completeResults());
   const serialized = JSON.stringify(report);
-  for (const field of ["passwordHash", "studentPinHash", "email", "phone", "studentName", "records"]) {
+  for (const field of ["passwordHash", "studentPinHash", "email", "phone", "studentName"]) {
     assert.equal(serialized.includes(field), false);
   }
+  assert.deepEqual(Object.keys(report.matched[0]).sort(), ["difference", "entityType", "matches", "sourceCount", "targetCount"]);
+  assert.deepEqual(Object.keys(report).sort(), [
+    "allMatched", "entityCount", "matched", "matchedEntityCount",
+    "mismatched", "mismatchedEntityCount", "sourceTotal", "targetTotal", "totalDifference"
+  ]);
 });
