@@ -69,7 +69,7 @@ export const createSupabaseExamSessionRepository=({request}={})=>{
    const sessionId=uuid(id,"exam session ID"),current=await findOne(sessionId,"exam session update lookup");
    if(!current)return null;
    const merged={...current,...payload};
-   const b=bodyFrom(merged,{partial:true});
+   const b=bodyFrom(payload,{partial:true});
    if(!Object.keys(b).length)throw new TypeError("At least one exam session field must be supplied");
    validateRules({...merged,id:sessionId,sessionCategory:b.session_category??current.sessionCategory,examMonth:b.exam_month===undefined?current.examMonth:b.exam_month,parentExamSessionId:b.parent_exam_session_id===undefined?current.parentExamSessionId:b.parent_exam_session_id});
    const parentId=b.parent_exam_session_id===undefined?current.parentExamSessionId:b.parent_exam_session_id;
