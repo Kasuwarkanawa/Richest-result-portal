@@ -114,3 +114,34 @@ using them.
 The migration foundation, isolated repositories, schema audit, and publication
 RPC proposals are in place. The runtime is still MongoDB-backed for the critical
 workflows above. This project is not ready for production cutover.
+
+### Legacy identity mapping implementation review
+
+The current branch contains `backend/src/modules/migration/legacyIdMapping.js`
+and its unit tests. This is a pure helper, not a Supabase ledger repository:
+it normalizes 24-character ObjectIds, generates deterministic UUIDv5 candidates,
+and resolves only a unique ledger-shaped record marked `verified`. It does not
+read or write a database table. The repository inventory above should therefore
+be read as adapter coverage for the listed academic entities; a persistent
+legacy-ID mapping repository and ledger table are still outstanding.
+
+The helper fails closed for malformed ObjectIds, missing mappings, duplicate
+mappings, non-verified states, and malformed target UUIDs. The deterministic
+UUID candidate must be persisted once and then retrieved from the ledger; it
+must not be regenerated independently by import jobs.
+
+The two design documents currently use different terminal-state names:
+`LEGACY-ID-MAPPING-DESIGN.md` lists `failed`, while
+`LEGACY-ID-MAPPING-LEDGER-SPEC.md` lists `rejected`. They also differ in
+checksum and batch metadata detail. Before authoring any DDL or ETL, consolidate
+these into one approved state machine and one schema contract, including the
+migration-batch lifecycle, checksum canonicalization, and verified-record
+immutability. No ledger DDL or data import has been performed.
+
+## Latest branch verification
+
+At branch head `fab7d8383b38d83170e43270f2964ae1e803e2f4`, the following GitHub
+Actions checks completed successfully: frontend build, backend tests, backend
+syntax, and PostgreSQL 17 publication RPC integration. These are branch CI
+results only and do not validate a production Supabase deployment or a data
+migration.
