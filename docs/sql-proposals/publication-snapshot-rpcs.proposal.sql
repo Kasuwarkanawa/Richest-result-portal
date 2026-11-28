@@ -44,6 +44,8 @@ DECLARE
   v_snapshot_id uuid;
   v_snapshot_version integer;
   v_total_students integer;
+  v_expected_summary_records bigint;
+  v_inserted_records bigint;
 BEGIN
   IF p_exam_session_id IS NULL OR p_actor_user_id IS NULL THEN
     RAISE EXCEPTION 'Exam session and actor are required'
@@ -220,6 +222,25 @@ BEGIN
     AND er.is_eligible = true
     AND pr.exam_session_id = p_exam_session_id;
 
+  GET DIAGNOSTICS v_inserted_records = ROW_COUNT;
+  IF v_inserted_records <> v_result_count THEN
+    RAISE EXCEPTION
+      'Snapshot result record mismatch: expected %, inserted %',
+      v_result_count, v_inserted_records
+      USING ERRCODE = '23514';
+  END IF;
+
+  SELECT count(*) INTO v_expected_summary_records
+  FROM (
+    SELECT DISTINCT pr.student_id, pr.source_semester_id
+    FROM public.processed_results pr
+    INNER JOIN public.exam_registrations er
+      ON er.id = pr.exam_registration_id
+    WHERE er.exam_session_id = p_exam_session_id
+      AND er.is_eligible = true
+      AND pr.exam_session_id = p_exam_session_id
+  ) required_pairs;
+
   INSERT INTO public.published_result_snapshot_records (
     snapshot_id,
     exam_session_id,
@@ -271,6 +292,14 @@ BEGIN
         AND pr.student_id = ss.student_id
         AND pr.source_semester_id = ss.semester_id
     );
+
+  GET DIAGNOSTICS v_inserted_records = ROW_COUNT;
+  IF v_inserted_records <> v_expected_summary_records THEN
+    RAISE EXCEPTION
+      'Snapshot summary record mismatch: expected %, inserted %',
+      v_expected_summary_records, v_inserted_records
+      USING ERRCODE = '23514';
+  END IF;
 
   UPDATE public.publish_snapshots ps
   SET status = 'SUPERSEDED',
