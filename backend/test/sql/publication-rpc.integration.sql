@@ -14,9 +14,7 @@ INSERT INTO semester_summaries(id,student_id,exam_session_id,semester_id,total_r
 VALUES ('90000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001','40000000-0000-0000-0000-000000000001',1,1,0,3,3,4,4,0,0,0);
 
 -- Concurrent calls must serialize and allocate versions 1 and 2.
-\! (psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "select * from public.publish_exam_session_snapshot('50000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','parallel A')" >/tmp/publish-a.log 2>&1) &
-\! (psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "select * from public.publish_exam_session_snapshot('50000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','parallel B')" >/tmp/publish-b.log 2>&1) &
-\! wait
+\! (psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "select * from public.publish_exam_session_snapshot('50000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','parallel A')" >/tmp/publish-a.log 2>&1 & psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "select * from public.publish_exam_session_snapshot('50000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','parallel B')" >/tmp/publish-b.log 2>&1 & wait)
 DO $$ BEGIN
  IF (SELECT count(*) FROM publish_snapshots WHERE exam_session_id='50000000-0000-0000-0000-000000000001') <> 2 THEN RAISE EXCEPTION 'concurrent publish did not create two versions'; END IF;
  IF (SELECT count(*) FROM publish_snapshots WHERE exam_session_id='50000000-0000-0000-0000-000000000001' AND status='ACTIVE') <> 1 THEN RAISE EXCEPTION 'expected exactly one active snapshot'; END IF;
