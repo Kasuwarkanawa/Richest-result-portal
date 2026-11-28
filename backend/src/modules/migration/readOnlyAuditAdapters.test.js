@@ -7,21 +7,20 @@ const makeModels = (counts = {}) => {
   const models = {};
   for (const entity of MIGRATION_ENTITIES) {
     if (entity.entityType === "user_departments") continue;
-    models[entity.sourceModel] = {
-      countDocuments(filter) {
-        assert.deepEqual(filter, {});
-        return { exec: async () => counts[entity.entityType] ?? 4 };
-      }
+    const modelName = entity.sourceModel;
+    models[modelName] ??= {};
+    models[modelName].countDocuments = (filter) => {
+      assert.deepEqual(filter, {});
+      return { exec: async () => counts[entity.entityType] ?? 4 };
     };
   }
-  models.User = {
-    aggregate(pipeline) {
-      assert.deepEqual(pipeline, [
-        { $unwind: "$departmentIds" },
-        { $count: "sourceCount" }
-      ]);
-      return { exec: async () => [{ sourceCount: counts.user_departments ?? 4 }] };
-    }
+  models.User ??= {};
+  models.User.aggregate = (pipeline) => {
+    assert.deepEqual(pipeline, [
+      { $unwind: "$departmentIds" },
+      { $count: "sourceCount" }
+    ]);
+    return { exec: async () => [{ sourceCount: counts.user_departments ?? 4 }] };
   };
   return models;
 };
