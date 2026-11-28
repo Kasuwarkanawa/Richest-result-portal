@@ -19,7 +19,8 @@ export const supabaseRequest = async (table, {
   query = "",
   body,
   prefer,
-  headers = {}
+  headers = {},
+  includeResponseMetadata = false
 } = {}) => {
   const { baseUrl, key } = getConfig();
   const suffix = query ? (query.startsWith("?") ? query : `?${query}`) : "";
@@ -48,6 +49,12 @@ export const supabaseRequest = async (table, {
     error.status = response.status;
     error.details = data;
     throw error;
+  }
+  if (includeResponseMetadata) {
+    return {
+      data,
+      contentRange: response.headers.get("content-range")
+    };
   }
   return data;
 };
