@@ -58,10 +58,10 @@ test("creates batch with normalized validated fields", async () => {
   assert.equal(call.options.prefer, "return=representation");
 });
 
-test("rejects invalid years and non-four-year engineering range", async () => {
+test("rejects invalid years and end years not greater than start years", async () => {
   const repository = createSupabaseBatchRepository({ request: async () => [makeRow()] });
   await assert.rejects(repository.createBatch({ label: "bad", startYear: 1899, endYear: 1903 }), /1900 and 3000/);
-  await assert.rejects(repository.createBatch({ label: "bad", startYear: 2023, endYear: 2026 }), /4-year gap/);
+  assert.equal((await repository.createBatch({ label: "valid", startYear: 2023, endYear: 2026 })).startYear, 2023);
   await assert.rejects(repository.createBatch({ label: "bad", startYear: 2027, endYear: 2023 }), /greater than/);
 });
 
@@ -78,7 +78,7 @@ test("updates supplied fields and validates resulting year range", async () => {
   assert.equal(updated.endYear, 2028);
   assert.equal(calls.length, 2);
   assert.deepEqual(calls[1].body, { end_year: 2028 });
-  await assert.rejects(repository.updateBatch(ID, { endYear: 2026 }), /4-year gap/);
+  await assert.rejects(repository.updateBatch(ID, { endYear: 2022 }), /greater than/);
 });
 
 test("toggles active state based on the current row", async () => {
