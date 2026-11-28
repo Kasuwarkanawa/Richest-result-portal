@@ -4,7 +4,7 @@ const TARGET_TABLES = new Set(MIGRATION_ENTITIES.map(({ targetTable }) => target
 
 /**
  * Parse the total from a PostgREST Content-Range header.
- * Accepts both "0-0/12" and "*/0"; rejects missing or inexact totals.
+ * Accepts a numeric total or a zero-row total; rejects missing or inexact totals.
  */
 export const parsePostgrestExactCount = (contentRange) => {
   if (typeof contentRange !== "string") {
