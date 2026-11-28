@@ -44,7 +44,9 @@ export const toPublicSupabaseUser = (user, departmentIds = []) => {
     role: safeUser.role,
     departmentIds,
     isActive: safeUser.isActive,
-    lastLoginAt: safeUser.lastLoginAt
+    lastLoginAt: safeUser.lastLoginAt,
+    createdAt: safeUser.createdAt,
+    updatedAt: safeUser.updatedAt
   };
 };
 
