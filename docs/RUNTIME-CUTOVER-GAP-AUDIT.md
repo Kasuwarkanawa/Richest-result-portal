@@ -18,6 +18,20 @@ replacement for the existing application services.
 
 ### Authentication
 
+A branch-only PostgreSQL authentication implementation now exists in
+`backend/src/modules/auth/supabaseAuth.service.js`, with focused tests in
+`supabaseAuth.service.test.js`. It uses the existing bcrypt hashes, keeps the
+current JWT claim names and configured signing/expiry values, loads normalized
+department memberships, updates last-login timestamps, and omits password hashes
+from public user projections. The Supabase user projection also preserves
+created/updated timestamps.
+
+This implementation is deliberately not wired to `auth.routes.js`. Its
+`userId` claim is a PostgreSQL UUID, while the still-active Mongoose services
+and controllers expect Mongo ObjectIds. Switching only the login service would
+therefore break downstream lookups and authorization. The complete UUID mapping
+and service migration must land together before authentication can be switched.
+
 `backend/src/modules/auth/auth.service.js` still imports the Mongoose
 `User` model. Login reads the user through `User.findOne`, checks the existing
 bcrypt password hash, updates `lastLoginAt`, and issues the existing access and
