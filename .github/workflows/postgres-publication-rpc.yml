@@ -1,0 +1,38 @@
+name: PostgreSQL 17 publication RPC integration tests
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [migration/supabase-postgres]
+  workflow_dispatch:
+jobs:
+  publication-rpc:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rigchest_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rigchest_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/rigchest_test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Create disposable schema
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/test/sql/publication-rpc-fixture.sql
+      - name: Install proposal SQL in disposable database
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docs/sql-proposals/publication-snapshot-rpcs.proposal.sql
+      - name: Run publication and rollback integration tests
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/test/sql/publication-rpc.integration.sql
