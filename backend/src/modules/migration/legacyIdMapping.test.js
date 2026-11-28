@@ -41,6 +41,17 @@ test("generates a stable RFC 4122 version 5 UUID candidate", () => {
   assert.notEqual(first, createDeterministicTargetUuid({ ...args, sourceSystem: "other-source" }));
 });
 
+test("encodes identity fields unambiguously when values contain delimiters", () => {
+  const common = { namespaceUuid: NAMESPACE, legacyId: LEGACY_ID };
+  const first = createDeterministicTargetUuid({
+    ...common, sourceSystem: "a/b", entityType: "c"
+  });
+  const second = createDeterministicTargetUuid({
+    ...common, sourceSystem: "a", entityType: "b/c"
+  });
+  assert.notEqual(first, second);
+});
+
 test("requires an explicit valid namespace and complete mapping identity", () => {
   assert.throws(() => createDeterministicTargetUuid({
     sourceSystem: "mongodb-rigchest", entityType: "users", legacyId: LEGACY_ID
