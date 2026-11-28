@@ -102,6 +102,8 @@ export const createSupabaseResultRepository=({request}={})=>{
   const policies=await get("grading_policies",{regulation_id:`eq.${uuid(student.regulation_id,"regulation ID")}`,subject_type:`eq.${subject.subject_type}`,is_active:"eq.true",limit:"2"},"id,internal_min,external_min,total_min,grade_rules","grading policy lookup");
   if(policies.length!==1)throw new Error(policies.length?"Multiple active grading policies found":"Active grading policy not found for student regulation and subject type");
   const policy=policies[0],decision=gradeDecision({mark,subject,policy});
+  const semesterSummary=one(await get("semester_summaries",{student_id:`eq.${registration.student_id}`,exam_session_id:`eq.${registration.exam_session_id}`,semester_id:`eq.${registration.source_semester_id}`,limit:"2"},SUMMARY_SELECT,"semester summary preflight"),"semester summary preflight");
+  if(semesterSummary?.is_published)throw new Error("A published semester summary cannot be overwritten");
   const existing=one(await get("processed_results",{exam_registration_id:`eq.${registration.id}`,limit:"2"},RESULT_SELECT,"processed result lookup"),"processed result lookup");
   if(existing?.is_published)throw new Error("A published result cannot be overwritten. Roll back publication before processing corrections.");
   const values={
