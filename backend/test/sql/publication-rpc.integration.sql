@@ -41,3 +41,15 @@ DO $$ BEGIN
  IF EXISTS (SELECT 1 FROM publish_snapshots WHERE exam_session_id='50000000-0000-0000-0000-000000000002') THEN RAISE EXCEPTION 'failed publish left a snapshot behind'; END IF;
  IF (SELECT status FROM exam_sessions WHERE id='50000000-0000-0000-0000-000000000002') <> 'APPROVED' THEN RAISE EXCEPTION 'failed publish changed session status'; END IF;
 END $$;
+
+-- A complete processed result without its student-semester summary must fail.
+INSERT INTO exam_sessions(id,name,exam_year,session_category,status) VALUES ('50000000-0000-0000-0000-000000000003','Missing Summary Session',2026,'REGULAR','APPROVED');
+INSERT INTO exam_registrations(id,exam_session_id,student_id,subject_id,source_semester_id,attempt_type)
+VALUES ('60000000-0000-0000-0000-000000000003','50000000-0000-0000-0000-000000000003','20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','40000000-0000-0000-0000-000000000001','REGULAR');
+INSERT INTO processed_results(id,exam_session_id,exam_registration_id,student_id,subject_id,source_semester_id,attempt_type,attempt_number,internal_mark,external_mark,total_mark,pass_status,grade,grade_point,credits_earned,grading_policy_id)
+VALUES ('70000000-0000-0000-0000-000000000003','50000000-0000-0000-0000-000000000003','60000000-0000-0000-0000-000000000003','20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','40000000-0000-0000-0000-000000000001','REGULAR',1,25,60,85,'PASS','A',4,3,'80000000-0000-0000-0000-000000000001');
+\\! if psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "select * from public.publish_exam_session_snapshot('50000000-0000-0000-0000-000000000003','10000000-0000-0000-0000-000000000001','missing summary must fail')" >/tmp/missing-summary.log 2>&1; then echo 'Expected missing-summary publication to fail' >&2; exit 1; fi
+DO $$ BEGIN
+ IF EXISTS (SELECT 1 FROM publish_snapshots WHERE exam_session_id='50000000-0000-0000-0000-000000000003') THEN RAISE EXCEPTION 'missing-summary publish left a snapshot behind'; END IF;
+ IF (SELECT status FROM exam_sessions WHERE id='50000000-0000-0000-0000-000000000003') <> 'APPROVED' THEN RAISE EXCEPTION 'missing-summary publish changed session status'; END IF;
+END $$;
