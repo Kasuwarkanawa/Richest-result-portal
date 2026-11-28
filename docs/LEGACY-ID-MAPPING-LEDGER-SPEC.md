@@ -73,7 +73,7 @@ The batch fails closed if any unexplained mismatch exists. Do not use a percenta
 
 ## 7. UUID generation policy
 
-The isolated helper may generate deterministic UUIDv5 candidates using a fixed, reviewed namespace and the tuple `source_system/entity_type/legacy_id`. The generated value is a candidate only: persist it once in the ledger, check target-table collisions, and thereafter reuse the ledger value. Changing the namespace or tuple format after import begins is prohibited without a versioned migration plan.
+The isolated helper generates deterministic UUIDv5 candidates using a fixed, reviewed namespace and the UTF-8 bytes of a JSON-encoded tuple `[source_system, entity_type, legacy_id]`. This unambiguous tuple encoding prevents delimiter-boundary collisions. The generated value is a candidate only: persist it once in the ledger, check target-table collisions, and thereafter reuse the ledger value. Changing the namespace or tuple format after import begins is prohibited without a versioned migration plan.
 
 The helper must never be treated as a substitute for the ledger. Missing, duplicate, malformed, or unverified mappings must stop the import.
 
