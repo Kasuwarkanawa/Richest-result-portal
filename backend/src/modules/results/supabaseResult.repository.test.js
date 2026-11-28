@@ -68,6 +68,18 @@ test("processes locked marks with the active grading policy and creates a semest
  assert.equal(db.semester_summaries.length,1);
 });
 
+test("uses student and subject identity from the locked mark entry",async()=>{
+ const data=fixture();
+ const markStudent="41000000-0000-4000-8000-000000000004";
+ data.mark_entries[0].student_id=markStudent;
+ data.students.push({id:markStudent,regulation_id:ID.regulation});
+ const{repo}=setup(data);
+ const result=await repo.processSingleResult(ID.mark);
+ assert.equal(result.processedResult.studentId,markStudent);
+ assert.equal(result.semesterSummary.studentId,markStudent);
+ assert.equal(data.processed_results[0].student_id,markStudent);
+});
+
 test("rejects unlocked marks and published exam sessions",async()=>{
  const unlocked=fixture();unlocked.mark_entries[0].entry_status="DRAFT";
  await assert.rejects(setup(unlocked).repo.processSingleResult(ID.mark),/Only locked/);
