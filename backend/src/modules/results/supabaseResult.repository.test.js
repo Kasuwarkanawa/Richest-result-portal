@@ -20,7 +20,7 @@ const fixture=()=>({
  exam_sessions:[{id:ID.session,status:"VERIFIED"}],
  students:[{id:ID.student,regulation_id:ID.regulation}],
  subjects:[{id:ID.subject,subject_type:"THEORY",credits:3}],
- grading_policies:[{id:ID.policy,internal_min:15,external_min:25,total_min:40,grade_rules:[{grade:"A",min:80,max:100,point:4},{grade:"B",min:60,max:79,point:3}]}],
+ grading_policies:[{id:ID.policy,is_active:true,internal_min:15,external_min:25,total_min:40,grade_rules:[{grade:"A",min:80,max:100,point:4},{grade:"B",min:60,max:79,point:3}]}],
  processed_results:[],
  semester_summaries:[]
 });
