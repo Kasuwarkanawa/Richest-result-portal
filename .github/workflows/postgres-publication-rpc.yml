@@ -32,7 +32,11 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Create disposable schema
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/test/sql/publication-rpc-fixture.sql
-      - name: Install proposal SQL in disposable database
+      - name: Install publication RPC proposal in disposable database
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docs/sql-proposals/publication-snapshot-rpcs.proposal.sql
       - name: Run publication and rollback integration tests
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/test/sql/publication-rpc.integration.sql
+      - name: Install snapshot immutability proposal in disposable database
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docs/sql-proposals/snapshot-record-immutability.proposal.sql
+      - name: Verify frozen snapshot records reject update and delete
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/test/sql/snapshot-record-immutability.integration.sql
