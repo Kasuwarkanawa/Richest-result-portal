@@ -14,12 +14,14 @@ const makeModels = (counts = {}) => {
       }
     };
   }
-  models.User.aggregate = (pipeline) => {
-    assert.deepEqual(pipeline, [
-      { $unwind: "$departmentIds" },
-      { $count: "sourceCount" }
-    ]);
-    return { exec: async () => [{ sourceCount: counts.user_departments ?? 3 }] };
+  models.User = {
+    aggregate(pipeline) {
+      assert.deepEqual(pipeline, [
+        { $unwind: "$departmentIds" },
+        { $count: "sourceCount" }
+      ]);
+      return { exec: async () => [{ sourceCount: counts.user_departments ?? 4 }] };
+    }
   };
   return models;
 };
@@ -62,8 +64,12 @@ test("countAll follows the manifest order and returns counts only", async () => 
 });
 
 test("rejects unknown entities and missing injected dependencies", async () => {
-  assert.throws(() => createReadOnlyAuditAdapters({ models: {}, countTargetRows: () => 0 }), /Missing count-capable Mongo model/);
   assert.throws(() => createReadOnlyAuditAdapters({ models: makeModels() }), /countTargetRows/);
+  const missingModelAdapters = createReadOnlyAuditAdapters({
+    models: {},
+    countTargetRows: async () => 0
+  });
+  await assert.rejects(missingModelAdapters.countEntity("students"), /Missing count-capable Mongo model/);
   const adapters = createReadOnlyAuditAdapters({ models: makeModels(), countTargetRows: async () => 4 });
   await assert.rejects(adapters.countEntity("unknown"), /migration inventory/);
 });
