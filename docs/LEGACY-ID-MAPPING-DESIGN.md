@@ -30,7 +30,8 @@ Because `target_id` points to different target tables depending on `entity_type`
 
 ## UUID assignment
 - Generate a UUID once for each source entity and persist it in the ledger before inserting dependent rows.
-- A deterministic UUIDv5 derived from a fixed, documented namespace plus `source_system/entity_type/legacy_id` is a viable repeatable strategy. The namespace and implementation must be fixed and tested before the first import.
+- The isolated helper derives a UUIDv5 candidate from a fixed namespace and the UTF-8 bytes of a JSON-encoded three-element array: `[source_system, entity_type, legacy_id]`. JSON array encoding keeps tuple boundaries unambiguous even when a field contains punctuation such as `/`.
+- Treat this encoding as a versioned migration contract. Fix and test the namespace and tuple format before the first import; do not change either after import begins without a versioned migration plan.
 - The ledger remains authoritative even if deterministic generation is used; never regenerate mappings independently in separate import jobs.
 - Do not depend on insertion order or PostgreSQL `gen_random_uuid()` for source entities when their IDs must be referenced by later imports.
 - Do not expose the mapping ledger through public API routes.
