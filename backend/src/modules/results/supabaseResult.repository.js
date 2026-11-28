@@ -95,9 +95,9 @@ export const createSupabaseResultRepository=({request}={})=>{
   const session=await findById("exam_sessions",uuid(registration.exam_session_id,"exam session ID"),"id,status","exam session lookup");
   if(!session)throw new Error("Exam session not found");
   if(session.status==="PUBLISHED")throw new Error("Results in a published exam session are locked. Roll back publication before processing corrections.");
-  const student=await findById("students",uuid(registration.student_id,"student ID"),"id,regulation_id","student lookup");
+  const student=await findById("students",uuid(mark.student_id,"student ID"),"id,regulation_id","student lookup");
   if(!student)throw new Error("Student not found");
-  const subject=await findById("subjects",uuid(registration.subject_id,"subject ID"),"id,subject_type,credits","subject lookup");
+  const subject=await findById("subjects",uuid(mark.subject_id,"subject ID"),"id,subject_type,credits","subject lookup");
   if(!subject)throw new Error("Subject not found");
   const policies=await get("grading_policies",{regulation_id:`eq.${uuid(student.regulation_id,"regulation ID")}`,subject_type:`eq.${subject.subject_type}`,is_active:"eq.true",limit:"2"},"id,internal_min,external_min,total_min,grade_rules","grading policy lookup");
   if(policies.length!==1)throw new Error(policies.length?"Multiple active grading policies found":"Active grading policy not found for student regulation and subject type");
@@ -106,28 +106,31 @@ export const createSupabaseResultRepository=({request}={})=>{
   if(semesterSummary?.is_published)throw new Error("A published semester summary cannot be overwritten");
   const existing=one(await get("processed_results",{exam_registration_id:`eq.${registration.id}`,limit:"2"},RESULT_SELECT,"processed result lookup"),"processed result lookup");
   if(existing?.is_published)throw new Error("A published result cannot be overwritten. Roll back publication before processing corrections.");
-  const values={
-   exam_session_id:registration.exam_session_id,
-   exam_registration_id:registration.id,
-   student_id:registration.student_id,
-   subject_id:registration.subject_id,
-   source_semester_id:registration.source_semester_id,
-   attempt_type:registration.attempt_type,
-   attempt_number:registration.attempt_number,
+  const resultValues={
    internal_mark:Number(mark.internal_mark),
    external_mark:Number(mark.external_mark),
    total_mark:Number(mark.total_mark),
    ...decision,
    grading_policy_id:policy.id,
    result_version:existing?Number(existing.result_version||1)+1:1,
-   is_published:false,
    processed_at:new Date().toISOString()
   };
+  const createValues={
+   exam_session_id:mark.exam_session_id,
+   exam_registration_id:registration.id,
+   student_id:mark.student_id,
+   subject_id:mark.subject_id,
+   source_semester_id:registration.source_semester_id,
+   attempt_type:registration.attempt_type,
+   attempt_number:registration.attempt_number,
+   ...resultValues,
+   is_published:false
+  };
   const saved=existing
-   ?await patch("processed_results",{id:`eq.${existing.id}`},values,RESULT_SELECT,"processed result update")
-   :await insert("processed_results",values,RESULT_SELECT,"processed result create");
+   ?await patch("processed_results",{id:`eq.${existing.id}`},resultValues,RESULT_SELECT,"processed result update")
+   :await insert("processed_results",createValues,RESULT_SELECT,"processed result create");
   if(!saved)throw new Error("Processed result write did not return a row");
-  const summary=await summarize({studentId:registration.student_id,examSessionId:registration.exam_session_id,semesterId:registration.source_semester_id});
+  const summary=await summarize({studentId:mark.student_id,examSessionId:mark.exam_session_id,semesterId:registration.source_semester_id});
   return{processedResult:mapResult(saved),semesterSummary:summary};
  };
  return Object.freeze({
