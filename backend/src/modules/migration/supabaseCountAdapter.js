@@ -15,7 +15,7 @@ export const parsePostgrestExactCount = (contentRange) => {
     throw new TypeError("PostgREST Content-Range metadata is malformed");
   }
   const [range, total] = parts;
-  if (!/^\\d+$/.test(total)) {
+  if (!/^\d+$/.test(total)) {
     throw new TypeError("PostgREST did not return an exact total count");
   }
   const count = Number(total);
