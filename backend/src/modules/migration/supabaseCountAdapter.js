@@ -10,8 +10,12 @@ export const parsePostgrestExactCount = (contentRange) => {
   if (typeof contentRange !== "string") {
     throw new TypeError("PostgREST response is missing Content-Range metadata");
   }
-  const [range, total] = contentRange.trim().split("/");
-  if (total === undefined || !/^\d+$/.test(total)) {
+  const parts = contentRange.trim().split("/");
+  if (parts.length !== 2) {
+    throw new TypeError("PostgREST Content-Range metadata is malformed");
+  }
+  const [range, total] = parts;
+  if (!/^\\d+$/.test(total)) {
     throw new TypeError("PostgREST did not return an exact total count");
   }
   const count = Number(total);

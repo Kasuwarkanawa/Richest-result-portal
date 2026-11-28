@@ -8,10 +8,11 @@ import {
 test("parses exact PostgREST totals", () => {
   assert.equal(parsePostgrestExactCount("0-0/17"), 17);
   assert.equal(parsePostgrestExactCount("*/0"), 0);
+  assert.equal(parsePostgrestExactCount("0-0/1"), 1);
 });
 
 test("rejects missing, inexact, and unsafe count metadata", () => {
-  for (const value of [null, "", "0-0/*", "invalid", "0-0/9007199254740992"]) {
+  for (const value of [null, "", "0-0/*", "0-0/", "0-0/17/extra", "0-0/9007199254740992", "0-0/0", "1-0/17", "0-17/17", "invalid"]) {
     assert.throws(() => parsePostgrestExactCount(value));
   }
 });
