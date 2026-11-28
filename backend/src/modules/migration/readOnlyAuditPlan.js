@@ -36,9 +36,12 @@ export const createReadOnlyAuditPlan = ({
     pageSize,
     offset,
     source: Object.freeze({
-      operation: "countDocuments",
-      model: entity.sourceModel,
-      collectionName: "resolve-from-registered-model-at-runtime"
+      operation: entity.entityType === "user_departments" ? "aggregate" : "countDocuments",
+      model: entity.entityType === "user_departments" ? "User" : entity.sourceModel,
+      collectionName: "resolve-from-registered-model-at-runtime",
+      pipeline: entity.entityType === "user_departments"
+        ? Object.freeze([{ stage: "$unwind", path: "$departmentIds" }, { stage: "$count", output: "sourceCount" }])
+        : null
     }),
     target: Object.freeze({
       operation: "count",
