@@ -41,7 +41,7 @@ test("creates one ordered plan for every inventory entity", () => {
   assert.ok(plans.every((plan) => ["countDocuments", "aggregate"].includes(plan.source.operation) && plan.target.operation === "count"));
   const derivedLinks = plans.find((plan) => plan.entityType === "user_departments");
   assert.equal(derivedLinks.source.operation, "aggregate");
-  assert.deepEqual(derivedLinks.source.pipeline.map((stage) => Object.keys(stage)[0]), ["$unwind", "$count"]);
+  assert.deepEqual(derivedLinks.source.pipeline.map((item) => item.stage), ["$unwind", "$count"]);
 });
 
 test("does not expose sensitive-field names or row payloads in plans", () => {
