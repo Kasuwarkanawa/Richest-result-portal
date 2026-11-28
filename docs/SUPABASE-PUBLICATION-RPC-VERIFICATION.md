@@ -61,9 +61,9 @@ finding. Revisit policies only if the application access model changes.
 
 ## Remaining work before any production apply
 
-1. Review publication semantics against the original MongoDB service, especially
-   whether `publish_snapshots.total_subjects` is intended to count processed
-   result rows or distinct subjects.
+1. Keep the verified MongoDB counting semantics: `total_students` is the
+   distinct student count; `total_subjects` is the processed-result row count.
+   The proposal matches this behavior.
 2. Add and test immutable-record protections for published snapshot rows.
 3. Confirm status-value compatibility and all route-level role checks against
    the original application behavior.
