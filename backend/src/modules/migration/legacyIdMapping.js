@@ -90,3 +90,84 @@ export const resolveVerifiedLegacyId = ({
   }
   return mapping.target_id.toLowerCase();
 };
+
+
+const ALLOWED_MAPPING_STATUSES = new Set(["pending", "imported", "verified", "rejected"]);
+const SHA256_PATTERN = /^[0-9a-f]{64}$/;
+
+/**
+ * Performs a fail-closed, in-memory validation of a proposed mapping batch.
+ * This is a preflight guard, not a replacement for database constraints or
+ * source/target reconciliation. It never mutates records.
+ */
+export const validateLegacyMappingBatch = (records) => {
+  if (!Array.isArray(records)) {
+    throw new TypeError("Mapping batch records must be an array");
+  }
+
+  const errors = [];
+  const sourceKeys = new Set();
+  const targetKeys = new Set();
+
+  records.forEach((record, index) => {
+    const label = `records[${index}]`;
+    if (!record || typeof record !== "object" || Array.isArray(record)) {
+      errors.push(`${label} must be an object`);
+      return;
+    }
+
+    const source = typeof record.source_system === "string" ? record.source_system.trim() : "";
+    const entity = typeof record.entity_type === "string" ? record.entity_type.trim() : "";
+    let legacyId;
+    try {
+      legacyId = normalizeLegacyObjectId(record.legacy_id);
+    } catch {
+      errors.push(`${label}.legacy_id must be a valid MongoDB ObjectId`);
+    }
+
+    if (!source) errors.push(`${label}.source_system is required`);
+    if (!entity) errors.push(`${label}.entity_type is required`);
+    if (!ALLOWED_MAPPING_STATUSES.has(record.mapping_status)) {
+      errors.push(`${label}.mapping_status is invalid`);
+    }
+
+    if (source && entity && legacyId) {
+      const sourceKey = JSON.stringify([source, entity, legacyId]);
+      if (sourceKeys.has(sourceKey)) errors.push(`${label} duplicates a source identity`);
+      sourceKeys.add(sourceKey);
+    }
+
+    const hasTarget = typeof record.target_id === "string" && UUID_PATTERN.test(record.target_id);
+    if (record.mapping_status === "pending" && record.target_id != null) {
+      errors.push(`${label} pending mapping must not have a target_id`);
+    }
+    if (["imported", "verified"].includes(record.mapping_status) && !hasTarget) {
+      errors.push(`${label} imported or verified mapping requires a valid target UUID`);
+    }
+    if (record.target_id != null && !hasTarget) {
+      errors.push(`${label}.target_id must be a valid UUID`);
+    }
+    if (hasTarget && entity) {
+      const targetKey = JSON.stringify([entity, record.target_id.toLowerCase()]);
+      if (targetKeys.has(targetKey)) errors.push(`${label} duplicates a target UUID within the entity type`);
+      targetKeys.add(targetKey);
+    }
+
+    if (record.mapping_status === "verified") {
+      if (typeof record.verified_at !== "string" || !record.verified_at.trim() ||
+          Number.isNaN(Date.parse(record.verified_at))) {
+        errors.push(`${label} verified mapping requires a valid verified_at timestamp`);
+      }
+      if (typeof record.source_checksum !== "string" || !SHA256_PATTERN.test(record.source_checksum)) {
+        errors.push(`${label} verified mapping requires a lowercase SHA-256 source_checksum`);
+      }
+      if (typeof record.target_checksum !== "string" || !SHA256_PATTERN.test(record.target_checksum)) {
+        errors.push(`${label} verified mapping requires a lowercase SHA-256 target_checksum`);
+      }
+    } else if (record.verified_at != null) {
+      errors.push(`${label} verified_at is only allowed for verified mappings`);
+    }
+  });
+
+  return { valid: errors.length === 0, errors };
+};
