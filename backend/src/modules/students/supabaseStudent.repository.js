@@ -72,10 +72,11 @@ const normalizePayload = (payload, { partial = false } = {}) => {
     body.student_pin_hash = payload.studentPinHash;
   }
   if (payload.studentPinGeneratedAt !== undefined) {
-    body.student_pin_generated_at = payload.studentPinGeneratedAt === null
-      ? null : new Date(payload.studentPinGeneratedAt).toISOString();
-    if (body.student_pin_generated_at && body.student_pin_generated_at === "Invalid Date") {
-      throw new TypeError("Student PIN generated date must be valid");
+    if (payload.studentPinGeneratedAt === null) body.student_pin_generated_at = null;
+    else {
+      const generatedAt = new Date(payload.studentPinGeneratedAt);
+      if (Number.isNaN(generatedAt.getTime())) throw new TypeError("Student PIN generated date must be valid");
+      body.student_pin_generated_at = generatedAt.toISOString();
     }
   }
   return body;
