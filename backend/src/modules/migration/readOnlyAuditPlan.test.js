@@ -38,7 +38,10 @@ test("creates one ordered plan for every inventory entity", () => {
   const plans = createReadOnlyAuditPlanForAll();
   assert.equal(plans.length, MIGRATION_ENTITIES.length);
   assert.deepEqual(plans.map((plan) => plan.entityType), MIGRATION_ENTITIES.map((item) => item.entityType));
-  assert.ok(plans.every((plan) => plan.source.operation === "countDocuments" && plan.target.operation === "count"));
+  assert.ok(plans.every((plan) => ["countDocuments", "aggregate"].includes(plan.source.operation) && plan.target.operation === "count"));
+  const derivedLinks = plans.find((plan) => plan.entityType === "user_departments");
+  assert.equal(derivedLinks.source.operation, "aggregate");
+  assert.deepEqual(derivedLinks.source.pipeline.map((stage) => Object.keys(stage)[0]), ["$unwind", "$count"]);
 });
 
 test("does not expose sensitive-field names or row payloads in plans", () => {
