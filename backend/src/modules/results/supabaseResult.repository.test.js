@@ -113,7 +113,9 @@ test("does not overwrite a published result or published summary",async()=>{
  const publishedResult=fixture();publishedResult.processed_results.push({id:ID.result,exam_registration_id:ID.registration,is_published:true,result_version:1});
  await assert.rejects(setup(publishedResult).repo.processSingleResult(ID.mark),/published result cannot be overwritten/);
  const publishedSummary=fixture();publishedSummary.semester_summaries.push({id:ID.summary,student_id:ID.student,exam_session_id:ID.session,semester_id:ID.semester,is_published:true,result_version:1});
- await assert.rejects(setup(publishedSummary).repo.processSingleResult(ID.mark),/published semester summary cannot be overwritten/);
+ const summaryGuard=setup(publishedSummary);
+ await assert.rejects(summaryGuard.repo.processSingleResult(ID.mark),/published semester summary cannot be overwritten/);
+ assert.equal(summaryGuard.db.processed_results.length,0,"a published summary must block result writes before they occur");
 });
 
 test("processes all locked entries and reports per-entry failures",async()=>{
