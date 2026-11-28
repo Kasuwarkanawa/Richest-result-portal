@@ -113,3 +113,13 @@ test("getMe returns not found for an unknown UUID", async () => {
     (error) => error.statusCode === 404 && error.message === "User not found"
   );
 });
+
+
+test("getMe rejects pre-cutover Mongo ObjectId JWT subjects without querying Supabase", async () => {
+  const { service, calls } = makeService();
+  await assert.rejects(
+    service.getMe("507f1f77bcf86cd799439011"),
+    (error) => error.statusCode === 401 && error.message === "Unauthorized access"
+  );
+  assert.equal(calls.length, 0);
+});
