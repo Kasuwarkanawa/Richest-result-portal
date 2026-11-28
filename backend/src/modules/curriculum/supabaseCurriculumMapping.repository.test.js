@@ -18,7 +18,7 @@ test("lists and maps curriculum mappings with referenced academic entities",asyn
  const repo=createSupabaseCurriculumMappingRepository({request:async(t,o)=>{call={t,o};return[row()];}});
  const result=await repo.listCurriculumMappings();
  assert.equal(call.t,"curriculum_mappings");
- assert.match(call.o.query,/batch:batches/);
+ assert.match(new URLSearchParams(call.o.query).get("select"),/batch:batches/);
  assert.equal(result[0].batch.label,"2023-2027");
  assert.equal(result[0].subject.code,"CHE101");
  assert.equal(result[0].sequenceNo,2);
