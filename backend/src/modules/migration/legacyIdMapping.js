@@ -30,8 +30,9 @@ const bytesToUuid = (bytes) => {
 };
 
 /**
- * Generates an RFC 4122 UUIDv5 candidate. Persist and reuse it through the
- * reviewed migration ledger; do not independently regenerate IDs per import.
+ * Generates an RFC 4122 UUIDv5 candidate. The name is a JSON-encoded
+ * three-element tuple, avoiding delimiter ambiguity between identity fields.
+ * Persist and reuse the candidate through the reviewed migration ledger.
  */
 export const createDeterministicTargetUuid = ({
   namespaceUuid,
@@ -43,7 +44,7 @@ export const createDeterministicTargetUuid = ({
   const source = requireText(sourceSystem, "source system");
   const entity = requireText(entityType, "entity type");
   const id = normalizeLegacyObjectId(legacyId);
-  const name = Buffer.from(`${source}/${entity}/${id}`, "utf8");
+  const name = Buffer.from(JSON.stringify([source, entity, id]), "utf8");
   const digest = createHash("sha1").update(namespace).update(name).digest();
   const bytes = Buffer.from(digest.subarray(0, 16));
   bytes[6] = (bytes[6] & 0x0f) | 0x50;
