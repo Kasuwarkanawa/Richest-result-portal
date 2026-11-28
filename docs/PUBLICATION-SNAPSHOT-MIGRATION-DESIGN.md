@@ -139,3 +139,22 @@ The isolated backend adapter added on this branch expects two server-only RPC fu
 - rollback_publish_snapshot(p_snapshot_id uuid, p_actor_user_id uuid, p_reason text) returns an object containing snapshot_id uuid.
 
 Both functions must implement the exact source rules documented in section 8 and commit all related writes atomically. The adapter performs a follow-up header read after the RPC commits, matching the source API's populated header response. Until reviewed SQL functions are approved and installed, publication writes remain unavailable through this isolated adapter.
+
+
+## 11. Draft SQL RPC proposal (not applied)
+
+A draft SQL implementation now exists at:
+
+`docs/sql-proposals/publication-snapshot-rpcs.proposal.sql`
+
+It defines the two RPCs in section 10, with transaction-scoped row locks, completeness validation, source-compatible RESULT/SUMMARY JSON payloads, version allocation, snapshot record insertion, publication flags, session status transitions, rollback metadata, and restricted EXECUTE grants.
+
+The SQL is deliberately stored under `docs/sql-proposals/`, not `supabase/migrations/`. It is a review artifact only. It has NOT been applied, executed, or tested against a database. The two RPC functions still do not exist in Supabase. Before any application:
+1. Review the SQL line-by-line against the source service and current live schema.
+2. Run it against a disposable PostgreSQL 17 database seeded with representative fixtures.
+3. Test failures at each write boundary, concurrent publication attempts, republishing after rollback, and rollback after a superseded snapshot exists.
+4. Confirm the service-role grant and RLS behavior in a non-production environment.
+5. Add immutable-record enforcement and decide the missing parity indexes/status constraint separately.
+6. Obtain explicit approval before applying anything to the RIGCHEST Supabase project.
+
+No database objects, policies, indexes, triggers, data, or runtime routes were changed by adding this proposal.
