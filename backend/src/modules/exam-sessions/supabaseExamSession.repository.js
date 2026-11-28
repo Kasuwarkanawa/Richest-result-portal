@@ -28,12 +28,12 @@ const bodyFrom=(p,{partial=false}={})=>{
  set("exam_month",p.examMonth,normalizeMonth);
  set("exam_year",p.examYear,normalizeYear);
  set("session_category",p.sessionCategory,normalizeCategory);
- set("parent_exam_session_id",p.parentExamSessionId,v=>v===null||v===""?null:uuid(v,"parent exam session ID"));
+ set("parent_exam_session_id",p.parentExamSessionId,v=>v===null||v===undefined||v===""?null:uuid(v,"parent exam session ID"));
  set("status",p.status??(partial?undefined:"DRAFT"),normalizeStatus);
  set("applicable_regulation_ids",p.applicableRegulationIds??(partial?undefined:[]),v=>uuidArray(v,"Applicable regulation IDs"));
  set("applicable_batch_ids",p.applicableBatchIds??(partial?undefined:[]),v=>uuidArray(v,"Applicable batch IDs"));
  set("result_published_at",p.resultPublishedAt,normalizeDate);
- set("result_published_by",p.resultPublishedBy,v=>v===null||v===""?null:uuid(v,"result publisher user ID"));
+ set("result_published_by",p.resultPublishedBy,v=>v===null||v===undefined||v===""?null:uuid(v,"result publisher user ID"));
  set("notes",p.notes??(partial?undefined:""),v=>v===null?"":String(v).trim());
  return b;
 };
