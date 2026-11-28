@@ -1,4 +1,5 @@
-import fs from "node:fs/promises";\nimport { asyncHandler } from "../../utils/asyncHandler.js";
+import fs from "node:fs/promises";
+import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ApiResponse } from "../../utils/apiResponse.js";
 import {
   createStudentService,

@@ -7,11 +7,15 @@ import rateLimit from "express-rate-limit";
 
 import { env } from "./config/env.js";
 import { connectDB } from "./config/db.js";
+import { supabaseHealthCheck } from "./config/supabase.js";
 import apiRoutes from "./routes/index.js";
 import { notFoundMiddleware } from "./middlewares/notFound.middleware.js";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
 
 const app = express();
+
+// Vercel runs Express behind one trusted proxy; this enables correct client IP handling.
+app.set("trust proxy", 1);
 
 app.use(
   cors({
@@ -50,6 +54,24 @@ const globalLimiter = rateLimit({
 });
 
 app.use(globalLimiter);
+
+// Supabase connectivity probe is intentionally before MongoDB middleware.
+// It checks only the server-side PostgREST connection and returns no credentials or row data.
+app.get("/api/health/supabase", async (_req, res) => {
+  try {
+    const health = await supabaseHealthCheck();
+    return res.status(200).json({
+      success: true,
+      message: "Supabase connection is healthy",
+      data: health
+    });
+  } catch (_error) {
+    return res.status(503).json({
+      success: false,
+      message: "Supabase connection check failed"
+    });
+  }
+});
 
 // Reuse the MongoDB connection across Vercel serverless invocations.
 app.use(async (req, res, next) => {

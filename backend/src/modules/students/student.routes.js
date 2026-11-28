@@ -25,7 +25,9 @@ import { ApiError } from "../../utils/apiError.js";
 
 const router = Router();
 
-const uploadDir = "uploads/student-imports";
+const uploadDir = process.env.VERCEL === "1"
+  ? path.join("/tmp", "student-imports")
+  : path.resolve("uploads/student-imports");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -52,7 +54,11 @@ const fileFilter = (_req, file, cb) => {
   cb(null, true);
 };
 
-const upload = multer({\n  storage,\n  fileFilter,\n  limits: { fileSize: 5 * 1024 * 1024 }\n});
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 }
+});
 
 router.use(authMiddleware);
 
