@@ -18,7 +18,7 @@ Before importing application data, review and approve a migration ledger with at
 - `migration_batch_id`: identifier for the import run.
 - `source_updated_at`: source document update timestamp when available.
 - `source_checksum`: canonical source-record checksum for reconciliation.
-- `mapping_status`: pending, imported, verified, or failed.
+- `mapping_status`: pending, imported, verified, or rejected (matching the detailed ledger specification).
 - `created_at` and `verified_at`: audit timestamps.
 
 Required uniqueness:
