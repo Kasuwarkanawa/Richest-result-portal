@@ -80,3 +80,44 @@ Before coding the repository or RPC:
 
 ## 7. Current safety boundary
 This document changes no runtime route, service, auth provider, production database, MongoDB data, or Supabase schema. The migration branch remains separate from main; PR #3 remains unmerged.
+
+## 8. Confirmed MongoDB publication behavior (source inspected on main)
+
+The original service is backend/src/modules/publish/publish.service.js. These are source rules, not proposed changes:
+
+### Publish
+
+- Validate the actor user before starting the transaction.
+- Reject a missing exam session and reject sessions in CLOSED state. Other session states are not rejected by this service.
+- Select eligible exam registrations only (isEligible=true); reject an empty eligible set.
+- Load processed results for the session and eligible registrations. Every result must resolve student, subject, and source semester.
+- Require exactly one processed result per eligible registration. A missing registration result or a result-count mismatch blocks publication.
+- Load summaries for the exam session. Require one matching summary for every distinct student/source-semester pair represented by the processed results. Only those required summaries are frozen.
+- RESULT payload shape: processedResultId; nested student {id, registerNumber, fullName}; examRegistrationId; nested subject {id, code, name, shortName, subjectType, credits}; nested sourceSemester {id, number, label, displayOrder}; attemptType; attemptNumber; internalMark; externalMark; totalMark; passStatus; grade; gradePoint; creditsEarned; gradingPolicyId; resultVersion; processedAt.
+- SUMMARY payload shape: studentId; studentRegisterNumber; studentFullName; nested semester {id, number, label, displayOrder}; totalRegisteredSubjects; totalPassedSubjects; totalFailedSubjects; totalRegisteredCredits; totalEarnedCredits; gpa; cgpa; currentArrearCount; totalPendingArrearCount; totalClearedArrearCount; resultVersion.
+- snapshotVersion is max existing version for the session plus one, or 1.
+- totalStudents is the distinct student count. totalSubjects is the processed-result row count (not a distinct subject count).
+- New snapshot has storageVersion 2, ACTIVE status, notes trimmed, and publishedBy/publishedAt.
+- Insert one RESULT record per frozen result (subjectId from payload) and one SUMMARY record per frozen summary (subjectId null).
+- Supersede any previous ACTIVE snapshots for that session.
+- Mark eligible processed results and the required summaries as published; set exam session status PUBLISHED and set publication timestamp/actor.
+- All writes above occur inside one MongoDB transaction.
+
+### Rollback
+
+- Validate the actor user.
+- Only an ACTIVE snapshot may be rolled back.
+- Its exam session must exist and currently be PUBLISHED.
+- Clear isPublished on all processed results and semester summaries for the exam session.
+- Set the selected snapshot status to ROLLED_BACK, and set rolledBackAt, rolledBackBy, and trimmed rollbackReason.
+- Set exam session status to APPROVED and clear resultPublishedAt/resultPublishedBy.
+- Snapshot record rows and frozen payloads are retained. The source service does not reactivate an older SUPERSEDED snapshot.
+- All rollback writes occur inside one MongoDB transaction.
+
+### Read behavior
+
+- Snapshot list and detail service responses exclude frozenResults and frozenSummaries from the snapshot header.
+- They populate exam session (name, examMonth, examYear, sessionCategory, status) and publisher (fullName, email, role).
+- Route authorization: publish and rollback require SUPER_ADMIN or EXAM_CELL_ADMIN. Snapshot list/detail also allow DEPARTMENT_ADMIN and VERIFIER.
+
+Implementation must preserve these behaviors unless a separately approved product change says otherwise.
