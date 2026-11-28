@@ -12,11 +12,11 @@ $$;
 
 -- UPDATE must fail with SQLSTATE 55000.
 \! if psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "UPDATE public.published_result_snapshot_records SET payload = payload || '{\"tampered\":true}'::jsonb WHERE id = (SELECT id FROM public.published_result_snapshot_records ORDER BY created_at LIMIT 1)" >/tmp/snapshot-update-denied.log 2>&1; then echo 'Expected snapshot UPDATE to be rejected' >&2; exit 1; fi
-grep -q 'Published snapshot records are immutable' /tmp/snapshot-update-denied.log
+\\! grep -q 'Published snapshot records are immutable' /tmp/snapshot-update-denied.log
 
 -- DELETE must fail with SQLSTATE 55000.
 \! if psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DELETE FROM public.published_result_snapshot_records WHERE id = (SELECT id FROM public.published_result_snapshot_records ORDER BY created_at LIMIT 1)" >/tmp/snapshot-delete-denied.log 2>&1; then echo 'Expected snapshot DELETE to be rejected' >&2; exit 1; fi
-grep -q 'Published snapshot records are immutable' /tmp/snapshot-delete-denied.log
+\\! grep -q 'Published snapshot records are immutable' /tmp/snapshot-delete-denied.log
 
 -- Confirm both attempts left the original record set and payloads intact.
 DO $$
