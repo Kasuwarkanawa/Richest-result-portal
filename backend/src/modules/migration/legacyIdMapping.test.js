@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import {
   createDeterministicTargetUuid,
   normalizeLegacyObjectId,
-  resolveVerifiedLegacyId
+  resolveVerifiedLegacyId,
+  validateLegacyMappingBatch
 } from "./legacyIdMapping.js";
 
 const NAMESPACE = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
@@ -90,4 +91,60 @@ test("requires a ledger record array", () => {
   assert.throws(() => resolveVerifiedLegacyId({
     records: null, sourceSystem: "mongodb-rigchest", entityType: "users", legacyId: LEGACY_ID
   }), /array/);
+});
+
+
+test("validates a complete verified batch without mutating its records", () => {
+  const verified = {
+    ...BASE,
+    verified_at: "2026-11-28T09:00:00.000Z",
+    source_checksum: "a".repeat(64),
+    target_checksum: "b".repeat(64)
+  };
+  const before = structuredClone(verified);
+  assert.deepEqual(validateLegacyMappingBatch([verified]), { valid: true, errors: [] });
+  assert.deepEqual(verified, before);
+});
+
+test("fails closed for duplicate identities, duplicate targets, and invalid state metadata", () => {
+  const verified = {
+    ...BASE,
+    verified_at: "2026-11-28T09:00:00.000Z",
+    source_checksum: "a".repeat(64),
+    target_checksum: "b".repeat(64)
+  };
+  const result = validateLegacyMappingBatch([
+    verified,
+    { ...verified, legacy_id: "507f1f77bcf86cd799439012" },
+    { ...verified, mapping_status: "imported", verified_at: null }
+  ]);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((error) => error.includes("duplicates a source identity")));
+  assert.ok(result.errors.some((error) => error.includes("duplicates a target UUID")));
+});
+
+test("requires target IDs for imported mappings and forbids targets on pending mappings", () => {
+  const result = validateLegacyMappingBatch([
+    { ...BASE, mapping_status: "pending", target_id: TARGET_ID, verified_at: null },
+    { ...BASE, mapping_status: "imported", target_id: null, verified_at: null }
+  ]);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((error) => error.includes("pending mapping must not have a target_id")));
+  assert.ok(result.errors.some((error) => error.includes("requires a valid target UUID")));
+});
+
+test("requires checksums and verified timestamp before a mapping can be verified", () => {
+  const result = validateLegacyMappingBatch([{ ...BASE, verified_at: null }]);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((error) => error.includes("verified_at")));
+  assert.ok(result.errors.some((error) => error.includes("source_checksum")));
+  assert.ok(result.errors.some((error) => error.includes("target_checksum")));
+});
+
+test("rejects non-array batches and malformed records", () => {
+  assert.throws(() => validateLegacyMappingBatch(null), /array/);
+  const result = validateLegacyMappingBatch([null, { ...BASE, mapping_status: "unknown" }]);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((error) => error.includes("must be an object")));
+  assert.ok(result.errors.some((error) => error.includes("mapping_status is invalid")));
 });
