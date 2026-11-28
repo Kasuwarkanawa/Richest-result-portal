@@ -7,13 +7,11 @@ const createModels = (sourceCount = 5) => {
   const models = {};
   for (const entity of MIGRATION_ENTITIES) {
     if (entity.entityType === "user_departments") {
-      models.User = {
-        aggregate: () => ({ exec: async () => [{ sourceCount }] })
-      };
+      models.User ??= {};
+      models.User.aggregate = () => ({ exec: async () => [{ sourceCount }] });
     } else {
-      models[entity.sourceModel] = {
-        countDocuments: () => ({ exec: async () => sourceCount })
-      };
+      models[entity.sourceModel] ??= {};
+      models[entity.sourceModel].countDocuments = () => ({ exec: async () => sourceCount });
     }
   }
   return models;
